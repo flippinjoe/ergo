@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-lint:
+    name: generate → build → test → lint
+    # Ergo targets the Swift 6.3 toolchain / Xcode 26 (see SETUP.md). Pin the
+    # runner image + Xcode once GitHub's macOS images ship it; until then this
+    # runs on the newest available image. `make bootstrap` fails loudly if the
+    # toolchain is too old.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode_latest.app || true
+
+      - name: Show toolchain
+        run: swift --version && xcodebuild -version
+
+      # Cache the vendored XcodeGen build so CI doesn't recompile it every run.
+      - name: Cache vendored tools
+        uses: actions/cache@v4
+        with:
+          path: Tools/.build
+          key: tools-${{ runner.os }}-${{ hashFiles('Tools/Package.resolved', 'Tools/Package.swift') }}
+
+      - name: Bootstrap
+        run: make bootstrap
+
+      - name: Generate project
+        run: make generate
+
+      - name: Build (package + app)
+        run: make build
+
+      - name: Test (headless, xUnit)
+        run: make test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/xunit.xml
+          if-no-files-found: warn
+
+      - name: Lint
+        run: make lint
