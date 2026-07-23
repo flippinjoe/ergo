@@ -1,0 +1,41 @@
+# SwiftLint configuration.
+#
+# NOTE: `swift-format` (bundled with the toolchain) is the *enforced* linter in
+# CI and `make lint` — it needs no install. SwiftLint is optional and only runs
+# if the binary is present (see the Makefile). This file exists so teams that do
+# have SwiftLint get a consistent ruleset.
+
+only_rules: []
+
+disabled_rules:
+  - todo # scaffolding intentionally leaves seams
+
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - first_where
+  - force_unwrapping
+  - redundant_nil_coalescing
+  - unneeded_parentheses_in_closure_argument
+
+included:
+  - Sources
+  - Tests
+  - App
+
+excluded:
+  - .build
+  - Tools/.build
+  - DerivedData
+
+line_length:
+  warning: 110
+  error: 140
+  ignores_comments: true
+
+identifier_name:
+  min_length: 2
+  excluded: [id, gvk, ns]
+
+type_name:
+  min_length: 3

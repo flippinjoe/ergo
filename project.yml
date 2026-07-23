@@ -1,0 +1,76 @@
+name: Ergo
+
+# XcodeGen manifest — the checked-in source of truth for the macOS app
+# project. The generated `Ergo.xcodeproj` is gitignored; regenerate with
+# `make generate`. Domain logic lives in the SPM package (Package.swift);
+# this project defines only the thin app shell that depends on it.
+
+options:
+  bundleIdPrefix: com.ergo
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+# The local Swift package that holds the platform-agnostic layers.
+packages:
+  Ergo:
+    path: .
+
+# Applied to every target so language mode and concurrency stay uniform with
+# the SPM package settings.
+settingGroups:
+  strict:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
+
+targets:
+  Ergo:
+    type: application
+    platform: macOS
+    sources:
+      - path: App/Ergo
+    dependencies:
+      - package: Ergo
+        product: KubeCore
+      - package: Ergo
+        product: KubeClient
+      - package: Ergo
+        product: KubeUI
+    settings:
+      groups:
+        - strict
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ergo.Ergo
+        PRODUCT_NAME: Ergo
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Ergo/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/Ergo/Ergo.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_HARDENED_RUNTIME: YES
+        # "Sign to Run Locally": ad-hoc signing, no team, no paid account.
+        # Builds on a fresh machine out of the box.
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        DEVELOPMENT_TEAM: ""
+
+schemes:
+  Ergo:
+    build:
+      targets:
+        Ergo: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

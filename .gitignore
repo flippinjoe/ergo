@@ -1,0 +1,26 @@
+# Generated Xcode project — source of truth is project.yml.
+# Regenerate with `make generate`.
+*.xcodeproj
+
+# SwiftPM build artifacts
+.build/
+Tools/.build/
+.swiftpm/
+
+# The app package has no external deps, so its resolved file is noise.
+# Tools/Package.resolved IS tracked (below) to pin XcodeGen's dependency
+# graph for reproducible tool builds.
+/Package.resolved
+
+# Xcode user state / DerivedData
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.DS_Store
+
+# Test / CI output
+TestResults/
+*.xcresult
+
+# Personal, per-user Claude Code settings (the shared harness lives elsewhere in .claude/)
+.claude/settings.local.json

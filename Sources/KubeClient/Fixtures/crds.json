@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "name": "certificates.cert-manager.io",
+      "group": "cert-manager.io",
+      "kind": "Certificate",
+      "versions": ["v1"],
+      "scope": "Namespaced"
+    },
+    {
+      "name": "clusterissuers.cert-manager.io",
+      "group": "cert-manager.io",
+      "kind": "ClusterIssuer",
+      "versions": ["v1"],
+      "scope": "Cluster"
+    }
+  ]
+}
