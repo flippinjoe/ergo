@@ -35,6 +35,30 @@ selected `ClusterConnection` into a `ClusterClient`.
     system browser and catches the redirect on a loopback listener (needs the
     `com.apple.security.network.server` entitlement).
 
+## Local kubeconfig (primary path)
+
+Talking to a cluster needs only its kubeconfig (server + CA + token) — ARM is
+**not** in that path. So the most robust way in is a local kubeconfig:
+
+- Add Cluster → **Kubeconfig file** → pick `~/.kube/config` → choose which
+  **contexts** to add (`Kubeconfig.contexts(from:)` lists them;
+  `Kubeconfig.parse(_:context:)` parses a named one).
+- Sandbox: the picked file is stored as a **security-scoped bookmark** in
+  `KubeconfigRef.bookmark` so access survives relaunch; the factory resolves it
+  with `startAccessingSecurityScopedResource`. Entitlements:
+  `files.user-selected.read-only` + `files.bookmarks.app-scope`.
+- This is the proven path (validated live). ARM auto-fetch is only a convenience
+  for clusters not already in a local kubeconfig.
+
+## Known issue — Azure in-app credential fetch
+
+`listClusterUserCredentials` returns a plain 404 from ARM in-app while
+`az aks get-credentials` (same public client, same account) succeeds — so it's a
+client-side request difference, not permissions (confirmed with an Owner account).
+The cluster resource GET works; only the credentials action 404s. Not yet root-caused
+(needs an `az --debug` request comparison). Workaround is the local kubeconfig path
+above; the error message points there.
+
 ## UI (KubeUI/Clusters)
 
 - `ClustersModel` (`@MainActor @Observable`) — load/add/remove/select, persists

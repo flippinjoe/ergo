@@ -47,9 +47,25 @@ public struct DefaultClusterClientFactory: ClusterClientProviding {
             let kubeconfig = try Kubeconfig.parse(try await azure.fetchKubeconfig(for: ref))
             return try liveClient(from: kubeconfig)
         case .kubeconfig(let ref):
-            let data = try Data(contentsOf: URL(fileURLWithPath: ref.path))
-            return try liveClient(from: try Kubeconfig.parse(data))
+            let data = try readKubeconfig(ref)
+            return try liveClient(from: try Kubeconfig.parse(data, context: ref.contextName))
         }
+    }
+
+    /// Reads the kubeconfig bytes, resolving a security-scoped bookmark when
+    /// present (required for a sandboxed app to re-open a user-picked file after
+    /// relaunch), falling back to the plain path.
+    private func readKubeconfig(_ ref: KubeconfigRef) throws -> Data {
+        guard let bookmark = ref.bookmark else {
+            return try Data(contentsOf: URL(fileURLWithPath: ref.path))
+        }
+        var isStale = false
+        let url = try URL(
+            resolvingBookmarkData: bookmark, options: [.withSecurityScope],
+            relativeTo: nil, bookmarkDataIsStale: &isStale)
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+        return try Data(contentsOf: url)
     }
 
     private func liveClient(from kubeconfig: Kubeconfig) throws -> any ClusterClient {

@@ -13,6 +13,7 @@ final class AddClusterModel {
         case azureSignIn
         case azureSubscriptions
         case azureClusters
+        case kubeconfigContexts
     }
 
     var step: Step = .chooseSource
@@ -25,6 +26,12 @@ final class AddClusterModel {
     var selectedSubscription: AzureSubscription?
     var clusters: [AzureManagedCluster] = []
     var selectedClusterIDs: Set<AzureManagedCluster.ID> = []
+
+    // Local-kubeconfig flow state.
+    var kubeContexts: [Kubeconfig.Context] = []
+    var selectedContextNames: Set<String> = []
+    private var kubeconfigPath = ""
+    private var kubeconfigBookmark: Data?
 
     private let azure: any AzureClusterService
 
@@ -40,7 +47,52 @@ final class AddClusterModel {
         case .azureSignIn: step = .chooseSource
         case .azureSubscriptions: step = .azureSignIn
         case .azureClusters: step = .azureSubscriptions
+        case .kubeconfigContexts: step = .chooseSource
         }
+    }
+
+    // MARK: Local kubeconfig
+
+    /// Reads a user-picked kubeconfig, records a security-scoped bookmark for
+    /// later access, and lists its contexts for selection.
+    func loadKubeconfig(url: URL) {
+        error = nil
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let data = try Data(contentsOf: url)
+            kubeconfigBookmark = try? url.bookmarkData(
+                options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
+            kubeconfigPath = url.path
+            kubeContexts = try Kubeconfig.contexts(from: data)
+            selectedContextNames = Set(kubeContexts.map(\.name))  // default: all
+            step = .kubeconfigContexts
+        } catch {
+            self.error = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+        }
+    }
+
+    func toggleContext(_ name: String) {
+        if selectedContextNames.contains(name) {
+            selectedContextNames.remove(name)
+        } else {
+            selectedContextNames.insert(name)
+        }
+    }
+
+    func selectedKubeconfigConnections(now: Date) -> [ClusterConnection] {
+        kubeContexts
+            .filter { selectedContextNames.contains($0.name) }
+            .map { context in
+                ClusterConnection(
+                    displayName: context.name,
+                    source: .kubeconfig(
+                        KubeconfigRef(
+                            path: kubeconfigPath, contextName: context.name, bookmark: kubeconfigBookmark)),
+                    addedAt: now,
+                    server: context.server.isEmpty ? nil : context.server,
+                    contextName: context.name)
+            }
     }
 
     func chooseAzure() {

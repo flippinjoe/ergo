@@ -84,16 +84,13 @@ struct AzureARMClient: Sendable {
                 throw AzureError.httpError(status: response.status, body: response.bodyText)
             }
         }
-        // A 404 on the credentials action while the cluster resource itself is
-        // readable almost always means the signed-in identity lacks the
-        // "Azure Kubernetes Service Cluster User Role" (the
-        // listClusterUserCredential/action permission). Point the user at the fix.
+        // ARM refused the in-app credentials fetch (status \(lastStatus)). The
+        // reliable path is a local kubeconfig, which talks to the cluster
+        // directly without ARM.
         throw AzureError.credentialsForbidden(
-            "Azure returned 404 for listClusterUserCredentials on '\(cluster.clusterName)'. "
-                + "Your account can read the cluster but can't fetch its credentials — this usually means it's "
-                + "missing the 'Azure Kubernetes Service Cluster User Role'. Ask an admin to grant it, or run "
-                + "`az aks get-credentials -g \(cluster.resourceGroup) -n \(cluster.clusterName)` and add the "
-                + "cluster via Add Cluster → Kubeconfig file. (status \(lastStatus))")
+            "Couldn't fetch '\(cluster.clusterName)' credentials from Azure (status \(lastStatus)). "
+                + "Run `az aks get-credentials -g \(cluster.resourceGroup) -n \(cluster.clusterName)`, "
+                + "then add it via Add Cluster → Kubeconfig file.")
     }
 
     private func get<T: Decodable>(_ url: URL, accessToken: String) async throws -> T {

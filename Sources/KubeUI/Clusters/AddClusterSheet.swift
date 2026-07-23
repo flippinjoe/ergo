@@ -38,7 +38,7 @@ struct AddClusterSheet: View {
         .background(Nocturne.surface)
         .tint(Nocturne.accent)
         .fileImporter(isPresented: $showingFileImporter, allowedContentTypes: [.item]) { result in
-            if case .success(let url) = result { importKubeconfig(at: url) }
+            if case .success(let url) = result { model.loadKubeconfig(url: url) }
         }
     }
 
@@ -68,6 +68,7 @@ struct AddClusterSheet: View {
         case .azureSignIn: "Sign in to Azure"
         case .azureSubscriptions: "Choose a subscription"
         case .azureClusters: "Choose clusters"
+        case .kubeconfigContexts: "Choose contexts"
         }
     }
 
@@ -79,6 +80,7 @@ struct AddClusterSheet: View {
         case .azureSignIn: azureSignIn
         case .azureSubscriptions: subscriptionList
         case .azureClusters: clusterList
+        case .kubeconfigContexts: contextList
         }
     }
 
@@ -95,7 +97,7 @@ struct AddClusterSheet: View {
             SourceCard(
                 kind: .kubeconfig,
                 title: "Kubeconfig file",
-                subtitle: "Import a context from a kubeconfig on this Mac."
+                subtitle: "Pick a kubeconfig (e.g. ~/.kube/config) and choose which contexts to add."
             ) { showingFileImporter = true }
         }
     }
@@ -206,15 +208,58 @@ struct AddClusterSheet: View {
         }
     }
 
-    private func importKubeconfig(at url: URL) {
-        let connection = ClusterConnection(
-            displayName: url.lastPathComponent,
-            source: .kubeconfig(KubeconfigRef(path: url.path, contextName: url.lastPathComponent)),
-            addedAt: Date()
-        )
-        Task {
-            await onAdd([connection])
-            dismiss()
+    private var contextList: some View {
+        VStack(spacing: 0) {
+            List {
+                ForEach(model.kubeContexts) { context in
+                    Button {
+                        model.toggleContext(context.name)
+                    } label: {
+                        HStack(spacing: Nocturne.Space.s3) {
+                            Image(
+                                systemName: model.selectedContextNames.contains(context.name)
+                                    ? "checkmark.circle.fill" : "circle"
+                            )
+                            .foregroundStyle(
+                                model.selectedContextNames.contains(context.name)
+                                    ? Nocturne.accent : Nocturne.muted(0.4))
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(context.name).font(Nocturne.Font.body)
+                                if !context.server.isEmpty {
+                                    Text(context.server)
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .foregroundStyle(Nocturne.muted(0.5))
+                                        .lineLimit(1)
+                                }
+                            }
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .listStyle(.plain)
+
+            HStack {
+                Spacer()
+                Button {
+                    Task {
+                        await onAdd(model.selectedKubeconfigConnections(now: Date()))
+                        dismiss()
+                    }
+                } label: {
+                    Text(
+                        model.selectedContextNames.isEmpty
+                            ? "Select contexts to add"
+                            : "Add \(model.selectedContextNames.count) context\(model.selectedContextNames.count == 1 ? "" : "s")"
+                    )
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(model.selectedContextNames.isEmpty)
+            }
+            .padding(.top, Nocturne.Space.s3)
         }
     }
 }

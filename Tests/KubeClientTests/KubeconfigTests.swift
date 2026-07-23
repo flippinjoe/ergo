@@ -91,4 +91,43 @@ struct KubeconfigTests {
             _ = try Kubeconfig.parse(Data("- just: a list".utf8))
         }
     }
+
+    private let multiContext = """
+        apiVersion: v1
+        kind: Config
+        current-context: prod
+        clusters:
+        - name: prod-cluster
+          cluster: { server: https://prod.example.com:443 }
+        - name: dev-cluster
+          cluster: { server: https://dev.example.com:443 }
+        contexts:
+        - name: prod
+          context: { cluster: prod-cluster, user: prod-user }
+        - name: dev
+          context: { cluster: dev-cluster, user: dev-user }
+        users:
+        - name: prod-user
+          user: { token: prod-token }
+        - name: dev-user
+          user: { token: dev-token }
+        """
+
+    @Test("Lists every context with its server")
+    func listsContexts() throws {
+        let contexts = try Kubeconfig.contexts(from: Data(multiContext.utf8))
+        #expect(contexts.map(\.name) == ["prod", "dev"])
+        #expect(contexts.first { $0.name == "dev" }?.server == "https://dev.example.com:443")
+    }
+
+    @Test("Parses a named context, not just current-context")
+    func parsesNamedContext() throws {
+        let dev = try Kubeconfig.parse(Data(multiContext.utf8), context: "dev")
+        #expect(dev.server.absoluteString == "https://dev.example.com:443")
+        #expect(dev.auth == .token("dev-token"))
+
+        // Defaulting to current-context resolves prod.
+        let current = try Kubeconfig.parse(Data(multiContext.utf8))
+        #expect(current.auth == .token("prod-token"))
+    }
 }

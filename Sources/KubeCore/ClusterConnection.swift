@@ -108,13 +108,17 @@ public struct AzureClusterRef: Hashable, Sendable, Codable {
     }
 }
 
-/// Points at a context inside a kubeconfig file on disk.
+/// Points at a context inside a kubeconfig file on disk. Carries an optional
+/// security-scoped bookmark so a sandboxed app can re-open the user-selected
+/// file across launches.
 public struct KubeconfigRef: Hashable, Sendable, Codable {
     public var path: String
     public var contextName: String
+    public var bookmark: Data?
 
-    public init(path: String, contextName: String) {
+    public init(path: String, contextName: String, bookmark: Data? = nil) {
         self.path = path
         self.contextName = contextName
+        self.bookmark = bookmark
     }
 }

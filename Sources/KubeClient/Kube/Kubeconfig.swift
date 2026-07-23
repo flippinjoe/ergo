@@ -1,8 +1,8 @@
 import Foundation
 import Yams
 
-/// A parsed kubeconfig, reduced to what Ergo needs to connect: the current
-/// context's server URL + CA, and how to authenticate.
+/// A parsed kubeconfig context, reduced to what Ergo needs to connect: the
+/// server URL + CA, and how to authenticate.
 public struct Kubeconfig: Sendable, Equatable {
     public var server: URL
     /// PEM bytes of the cluster CA, if the config pins one.
@@ -20,30 +20,45 @@ public struct Kubeconfig: Sendable, Equatable {
         case unknown
     }
 
-    /// Parses the current context out of a kubeconfig's YAML bytes.
-    public static func parse(_ data: Data) throws -> Kubeconfig {
-        guard let text = String(data: data, encoding: .utf8),
-            let root = try Yams.load(yaml: text) as? [String: Any]
-        else {
-            throw KubeconfigError.malformed("not valid YAML")
-        }
+    /// A selectable context in a kubeconfig (for the picker).
+    public struct Context: Sendable, Equatable, Identifiable {
+        public var name: String
+        public var server: String
+        public var id: String { name }
+    }
 
+    /// Lists every context in a kubeconfig, so the user can choose which to add.
+    public static func contexts(from data: Data) throws -> [Context] {
+        let root = try parseRoot(data)
+        let clusters = root["clusters"] as? [[String: Any]] ?? []
+        return (root["contexts"] as? [[String: Any]] ?? []).compactMap { entry in
+            guard let name = entry["name"] as? String else { return nil }
+            let ctx = entry["context"] as? [String: Any]
+            let clusterName = ctx?["cluster"] as? String
+            let server =
+                (named(clusterName, in: clusters)?["cluster"] as? [String: Any])?["server"] as? String
+            return Context(name: name, server: server ?? "")
+        }
+    }
+
+    /// Parses a specific context (by name), or the `current-context` when `name`
+    /// is nil.
+    public static func parse(_ data: Data, context name: String? = nil) throws -> Kubeconfig {
+        let root = try parseRoot(data)
         let contexts = root["contexts"] as? [[String: Any]] ?? []
         let clusters = root["clusters"] as? [[String: Any]] ?? []
         let users = root["users"] as? [[String: Any]] ?? []
-        let currentName = root["current-context"] as? String
 
-        let context = named(currentName, in: contexts) ?? contexts.first
+        let wanted = name ?? (root["current-context"] as? String)
+        let context = named(wanted, in: contexts) ?? contexts.first
         let ctx = context?["context"] as? [String: Any]
-        let clusterName = ctx?["cluster"] as? String
-        let userName = ctx?["user"] as? String
 
-        guard let clusterEntry = named(clusterName, in: clusters) ?? clusters.first,
+        guard let clusterEntry = named(ctx?["cluster"] as? String, in: clusters) ?? clusters.first,
             let cluster = clusterEntry["cluster"] as? [String: Any],
             let serverString = cluster["server"] as? String,
             let server = URL(string: serverString)
         else {
-            throw KubeconfigError.malformed("no cluster server")
+            throw KubeconfigError.malformed("no cluster server for context \(wanted ?? "?")")
         }
 
         var caPEM: Data?
@@ -51,10 +66,19 @@ public struct Kubeconfig: Sendable, Equatable {
             caPEM = Data(base64Encoded: caData)
         }
 
-        let userEntry = named(userName, in: users) ?? users.first
+        let userEntry = named(ctx?["user"] as? String, in: users) ?? users.first
         let auth = Self.auth(from: userEntry?["user"] as? [String: Any] ?? [:])
 
         return Kubeconfig(server: server, caPEM: caPEM, auth: auth)
+    }
+
+    private static func parseRoot(_ data: Data) throws -> [String: Any] {
+        guard let text = String(data: data, encoding: .utf8),
+            let root = try Yams.load(yaml: text) as? [String: Any]
+        else {
+            throw KubeconfigError.malformed("not valid YAML")
+        }
+        return root
     }
 
     private static func auth(from user: [String: Any]) -> Auth {
