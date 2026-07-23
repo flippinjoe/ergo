@@ -1,22 +1,77 @@
 import Foundation
 
-/// A workload Pod. Modeled shallowly — enough to prove decoding and to seed
-/// the relationship graph via `metadata.ownerReferences`.
+/// A workload Pod. Modeled shallowly — enough to drive the explorer table and
+/// seed the relationship graph via `metadata.ownerReferences`.
 public struct Pod: Hashable, Sendable, Codable, Identifiable {
     public var metadata: ObjectMeta
+    public var spec: Spec?
     public var status: Status?
+
+    public struct Spec: Hashable, Sendable, Codable {
+        public var nodeName: String?
+        public init(nodeName: String? = nil) { self.nodeName = nodeName }
+    }
 
     public struct Status: Hashable, Sendable, Codable {
         public var phase: String?
-        public init(phase: String? = nil) { self.phase = phase }
+        public var containerStatuses: [ContainerStatus]?
+        public init(phase: String? = nil, containerStatuses: [ContainerStatus]? = nil) {
+            self.phase = phase
+            self.containerStatuses = containerStatuses
+        }
     }
 
     public var id: String { metadata.uid ?? "\(metadata.namespace ?? "")/\(metadata.name)" }
 
-    public init(metadata: ObjectMeta, status: Status? = nil) {
+    /// Total container restarts — the "Restarts" column.
+    public var restartCount: Int {
+        status?.containerStatuses?.reduce(0) { $0 + $1.restartCount } ?? 0
+    }
+
+    /// What the UI shows in the "Status" column. A container waiting reason
+    /// (e.g. `CrashLoopBackOff`) is more useful than the coarse phase, so it
+    /// wins when present.
+    public var displayStatus: String {
+        if let reason = status?.containerStatuses?.compactMap(\.state?.waiting?.reason).first {
+            return reason
+        }
+        return status?.phase ?? "Unknown"
+    }
+
+    /// Health bucket derived from `displayStatus` — drives the status dot color.
+    public var health: HealthStatus { HealthStatus(kubernetesStatus: displayStatus) }
+
+    public init(metadata: ObjectMeta, spec: Spec? = nil, status: Status? = nil) {
         self.metadata = metadata
+        self.spec = spec
         self.status = status
     }
+}
+
+/// A single container's runtime status. Only the fields the explorer needs.
+public struct ContainerStatus: Hashable, Sendable, Codable {
+    public var name: String?
+    public var restartCount: Int
+    public var state: ContainerState?
+
+    public init(name: String? = nil, restartCount: Int = 0, state: ContainerState? = nil) {
+        self.name = name
+        self.restartCount = restartCount
+        self.state = state
+    }
+}
+
+/// A container's current state. Modeled just far enough to surface a waiting
+/// reason like `CrashLoopBackOff`.
+public struct ContainerState: Hashable, Sendable, Codable {
+    public var waiting: Waiting?
+
+    public struct Waiting: Hashable, Sendable, Codable {
+        public var reason: String?
+        public init(reason: String? = nil) { self.reason = reason }
+    }
+
+    public init(waiting: Waiting? = nil) { self.waiting = waiting }
 }
 
 /// A Deployment. Owns ReplicaSets which in turn own Pods — the canonical

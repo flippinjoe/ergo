@@ -10,9 +10,11 @@ import SwiftUI
 struct ErgoApp: App {
     var body: some Scene {
         WindowGroup {
-            ClusterBrowserView(client: FakeClusterClient())
-                .frame(minWidth: 480, minHeight: 360)
+            ClusterExplorerView(client: FakeClusterClient())
+                .frame(minWidth: 900, minHeight: 560)
+                .preferredColorScheme(.dark)
         }
-        .windowResizability(.contentMinSize)
+        .windowStyle(.titleBar)
+        .windowToolbarStyle(.unified)
     }
 }

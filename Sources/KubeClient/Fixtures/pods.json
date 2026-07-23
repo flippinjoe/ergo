@@ -2,51 +2,118 @@
   "items": [
     {
       "metadata": {
-        "name": "web-7d9f8c6b5-abcde",
-        "namespace": "default",
-        "uid": "11111111-1111-1111-1111-111111111111",
-        "creationTimestamp": "2026-07-22T17:58:03Z",
-        "labels": { "app": "web" },
+        "name": "cert-manager-7d9f8c-4nzp2",
+        "namespace": "cert-manager",
+        "uid": "11111111-0000-0000-0000-000000000001",
+        "creationTimestamp": "2026-07-08T09:41:00Z",
+        "labels": { "app": "cert-manager" },
         "ownerReferences": [
           {
             "apiVersion": "apps/v1",
             "kind": "ReplicaSet",
-            "name": "web-7d9f8c6b5",
-            "uid": "22222222-2222-2222-2222-222222222222",
+            "name": "cert-manager-7d9f8c",
+            "uid": "22222222-0000-0000-0000-000000000001",
             "controller": true
           }
         ]
       },
-      "status": { "phase": "Running" }
+      "spec": { "nodeName": "ip-10-0-3-91" },
+      "status": { "phase": "Running", "containerStatuses": [{ "name": "cert-manager", "restartCount": 0 }] }
     },
     {
       "metadata": {
-        "name": "web-7d9f8c6b5-fghij",
-        "namespace": "default",
-        "uid": "33333333-3333-3333-3333-333333333333",
-        "creationTimestamp": "2026-07-22T17:58:03Z",
-        "labels": { "app": "web" },
+        "name": "traefik-6b5c4d9f7-h2xk8",
+        "namespace": "traefik",
+        "uid": "11111111-0000-0000-0000-000000000002",
+        "creationTimestamp": "2026-07-13T09:41:00Z",
+        "labels": { "app": "traefik" }
+      },
+      "spec": { "nodeName": "ip-10-0-2-14" },
+      "status": { "phase": "Running", "containerStatuses": [{ "name": "traefik", "restartCount": 0 }] }
+    },
+    {
+      "metadata": {
+        "name": "argocd-repo-server-5f7b-jc9wd",
+        "namespace": "argocd",
+        "uid": "11111111-0000-0000-0000-000000000003",
+        "creationTimestamp": "2026-07-22T07:41:00Z",
+        "labels": { "app": "argocd-repo-server" },
         "ownerReferences": [
           {
             "apiVersion": "apps/v1",
             "kind": "ReplicaSet",
-            "name": "web-7d9f8c6b5",
-            "uid": "22222222-2222-2222-2222-222222222222",
+            "name": "argocd-repo-server-5f7b",
+            "uid": "22222222-0000-0000-0000-000000000003",
             "controller": true
           }
         ]
       },
-      "status": { "phase": "Running" }
+      "spec": { "nodeName": "ip-10-0-3-91" },
+      "status": {
+        "phase": "Running",
+        "containerStatuses": [
+          {
+            "name": "repo-server",
+            "restartCount": 7,
+            "state": { "waiting": { "reason": "CrashLoopBackOff" } }
+          }
+        ]
+      }
     },
     {
       "metadata": {
-        "name": "batch-runner",
-        "namespace": "jobs",
-        "uid": "44444444-4444-4444-4444-444444444444",
-        "creationTimestamp": "2026-07-22T18:01:47Z",
-        "labels": { "app": "batch" }
+        "name": "datadog-agent-mkq7v",
+        "namespace": "datadog",
+        "uid": "11111111-0000-0000-0000-000000000004",
+        "creationTimestamp": "2026-07-01T09:41:00Z",
+        "labels": { "app": "datadog-agent" }
       },
-      "status": { "phase": "Pending" }
+      "spec": { "nodeName": "ip-10-0-1-56" },
+      "status": { "phase": "Running", "containerStatuses": [{ "name": "agent", "restartCount": 1 }] }
+    },
+    {
+      "metadata": {
+        "name": "keda-operator-6c8d9b5f4-9wm2t",
+        "namespace": "keda",
+        "uid": "11111111-0000-0000-0000-000000000005",
+        "creationTimestamp": "2026-06-22T09:41:00Z",
+        "labels": { "app": "keda-operator" }
+      },
+      "spec": { "nodeName": "ip-10-0-2-14" },
+      "status": { "phase": "Running", "containerStatuses": [{ "name": "keda-operator", "restartCount": 0 }] }
+    },
+    {
+      "metadata": {
+        "name": "redis-master-0",
+        "namespace": "redis",
+        "uid": "11111111-0000-0000-0000-000000000006",
+        "creationTimestamp": "2026-07-22T09:38:00Z",
+        "labels": { "app": "redis" }
+      },
+      "spec": {},
+      "status": { "phase": "Pending", "containerStatuses": [{ "name": "redis", "restartCount": 0 }] }
+    },
+    {
+      "metadata": {
+        "name": "prometheus-k8s-0",
+        "namespace": "monitoring",
+        "uid": "11111111-0000-0000-0000-000000000007",
+        "creationTimestamp": "2026-07-16T09:41:00Z",
+        "labels": { "app": "prometheus" }
+      },
+      "spec": { "nodeName": "ip-10-0-1-56" },
+      "status": { "phase": "Running", "containerStatuses": [{ "name": "prometheus", "restartCount": 0 }] }
+    },
+    {
+      "metadata": {
+        "name": "grafana-84fd9c7b6-tq5rn",
+        "namespace": "monitoring",
+        "uid": "11111111-0000-0000-0000-000000000008",
+        "creationTimestamp": "2026-07-16T09:41:00Z",
+        "labels": { "app": "grafana" }
+      },
+      "spec": { "nodeName": "ip-10-0-3-91" },
+      "status": { "phase": "Running", "containerStatuses": [{ "name": "grafana", "restartCount": 0 }] }
     }
   ]
 }

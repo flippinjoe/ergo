@@ -11,43 +11,62 @@ import Testing
 struct FixtureDecodingTests {
     let client = FakeClusterClient()
 
-    @Test("Pods decode with owner references and phases")
+    @Test("Pods decode with node, restarts, and owner references")
     func decodePods() async throws {
         let pods = try await client.listPods(namespace: nil)
-        #expect(pods.count == 3)
+        #expect(pods.count == 8)
 
-        let web = try #require(pods.first { $0.metadata.name == "web-7d9f8c6b5-abcde" })
-        #expect(web.status?.phase == "Running")
+        let cert = try #require(pods.first { $0.metadata.name.hasPrefix("cert-manager") })
+        #expect(cert.spec?.nodeName == "ip-10-0-3-91")
+        #expect(cert.restartCount == 0)
         // Pillar 1: the relationship link decodes.
-        #expect(web.metadata.ownerReferences?.first?.kind == "ReplicaSet")
-        #expect(web.metadata.ownerReferences?.first?.controller == true)
+        #expect(cert.metadata.ownerReferences?.first?.kind == "ReplicaSet")
+        #expect(cert.metadata.ownerReferences?.first?.controller == true)
+    }
+
+    @Test("A crash-looping container surfaces its waiting reason and restarts")
+    func crashLoopStatus() async throws {
+        let pods = try await client.listPods(namespace: "argocd")
+        let argo = try #require(pods.first)
+        #expect(argo.restartCount == 7)
+        #expect(argo.displayStatus == "CrashLoopBackOff")
+        #expect(argo.health == .error)
+    }
+
+    @Test("A pending, unscheduled pod has no node and reads as a warning")
+    func pendingPod() async throws {
+        let pods = try await client.listPods(namespace: "redis")
+        let redis = try #require(pods.first)
+        #expect(redis.spec?.nodeName == nil)
+        #expect(redis.displayStatus == "Pending")
+        #expect(redis.health == .warning)
     }
 
     @Test("Namespace filtering is applied to fixtures")
     func namespaceFilter() async throws {
-        let jobsPods = try await client.listPods(namespace: "jobs")
-        #expect(jobsPods.count == 1)
-        #expect(jobsPods.first?.metadata.name == "batch-runner")
+        let monitoring = try await client.listPods(namespace: "monitoring")
+        #expect(monitoring.count == 2)
+        #expect(monitoring.allSatisfy { $0.metadata.namespace == "monitoring" })
     }
 
     @Test("Deployments decode with spec")
     func decodeDeployments() async throws {
-        let deployments = try await client.listDeployments(namespace: "default")
-        let web = try #require(deployments.first)
-        #expect(web.metadata.name == "web")
-        #expect(web.spec?.replicas == 2)
+        let deployments = try await client.listDeployments(namespace: "argocd")
+        let repo = try #require(deployments.first)
+        #expect(repo.metadata.name == "argocd-repo-server")
+        #expect(repo.spec?.replicas == 2)
     }
 
     @Test("Events decode with involvedObject and ISO-8601 timestamps")
     func decodeEvents() async throws {
         let events = try await client.listEvents(namespace: nil)
-        #expect(events.count == 2)
+        #expect(events.count == 3)
 
-        let warning = try #require(events.first { $0.type == "Warning" })
-        #expect(warning.reason == "FailedScheduling")
-        #expect(warning.involvedObject.name == "batch-runner")
+        let backoff = try #require(events.first { $0.reason == "BackOff" })
+        #expect(backoff.type == "Warning")
+        #expect(backoff.involvedObject.name == "argocd-repo-server-5f7b-jc9wd")
         // Pillar 1 (time): the timestamp parsed as a real Date.
-        #expect(warning.lastTimestamp != nil)
+        #expect(backoff.lastTimestamp != nil)
     }
 
     @Test("CRD summaries decode with scope enum")
@@ -59,8 +78,6 @@ struct FixtureDecodingTests {
 
     @Test("The client boundary error type is a typed, comparable value")
     func typedError() {
-        // The boundary defines a typed error so callers can branch on it
-        // rather than inspecting strings.
         #expect(ClusterClientError.fixtureNotFound("x.json") == .fixtureNotFound("x.json"))
         #expect(ClusterClientError.fixtureNotFound("x.json") != .notImplemented)
     }

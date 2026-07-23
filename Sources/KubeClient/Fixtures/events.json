@@ -2,41 +2,60 @@
   "items": [
     {
       "metadata": {
-        "name": "web-7d9f8c6b5-abcde.17f0a1",
-        "namespace": "default",
-        "uid": "66666666-6666-6666-6666-666666666666"
+        "name": "redis-master-0.17f0a1",
+        "namespace": "redis",
+        "uid": "66666666-0000-0000-0000-000000000001"
       },
       "involvedObject": {
         "apiVersion": "v1",
         "kind": "Pod",
-        "namespace": "default",
-        "name": "web-7d9f8c6b5-abcde",
-        "uid": "11111111-1111-1111-1111-111111111111"
-      },
-      "reason": "Scheduled",
-      "message": "Successfully assigned default/web-7d9f8c6b5-abcde to node-1",
-      "type": "Normal",
-      "count": 1,
-      "lastTimestamp": "2026-07-22T17:58:04Z"
-    },
-    {
-      "metadata": {
-        "name": "batch-runner.17f0b2",
-        "namespace": "jobs",
-        "uid": "77777777-7777-7777-7777-777777777777"
-      },
-      "involvedObject": {
-        "apiVersion": "v1",
-        "kind": "Pod",
-        "namespace": "jobs",
-        "name": "batch-runner",
-        "uid": "44444444-4444-4444-4444-444444444444"
+        "namespace": "redis",
+        "name": "redis-master-0",
+        "uid": "11111111-0000-0000-0000-000000000006"
       },
       "reason": "FailedScheduling",
       "message": "0/3 nodes are available: 3 Insufficient memory.",
       "type": "Warning",
       "count": 4,
-      "lastTimestamp": "2026-07-22T18:02:10Z"
+      "lastTimestamp": "2026-07-22T09:40:10Z"
+    },
+    {
+      "metadata": {
+        "name": "argocd-repo-server-5f7b-jc9wd.17f0b2",
+        "namespace": "argocd",
+        "uid": "66666666-0000-0000-0000-000000000002"
+      },
+      "involvedObject": {
+        "apiVersion": "v1",
+        "kind": "Pod",
+        "namespace": "argocd",
+        "name": "argocd-repo-server-5f7b-jc9wd",
+        "uid": "11111111-0000-0000-0000-000000000003"
+      },
+      "reason": "BackOff",
+      "message": "Back-off restarting failed container repo-server in pod argocd-repo-server-5f7b-jc9wd",
+      "type": "Warning",
+      "count": 7,
+      "lastTimestamp": "2026-07-22T09:41:13Z"
+    },
+    {
+      "metadata": {
+        "name": "cert-manager-7d9f8c-4nzp2.17f0c3",
+        "namespace": "cert-manager",
+        "uid": "66666666-0000-0000-0000-000000000003"
+      },
+      "involvedObject": {
+        "apiVersion": "v1",
+        "kind": "Pod",
+        "namespace": "cert-manager",
+        "name": "cert-manager-7d9f8c-4nzp2",
+        "uid": "11111111-0000-0000-0000-000000000001"
+      },
+      "reason": "Scheduled",
+      "message": "Successfully assigned cert-manager/cert-manager-7d9f8c-4nzp2 to ip-10-0-3-91",
+      "type": "Normal",
+      "count": 1,
+      "lastTimestamp": "2026-07-08T09:41:02Z"
     }
   ]
 }

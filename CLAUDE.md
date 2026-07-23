@@ -59,8 +59,9 @@ Clean checkout to green: **`make bootstrap && make test`**.
 Package.swift            SPM libraries: KubeCore ◀ KubeClient ◀ KubeUI
 Sources/KubeCore/        Pure value types (pillars 1 & 2). No I/O.
 Sources/KubeClient/      ClusterClient boundary + FakeClusterClient + Fixtures/
-Sources/KubeUI/          Shared SwiftUI, platform-agnostic.
+Sources/KubeUI/          Shared SwiftUI: Nocturne theme, components, Explorer (concept 1a).
 App/Ergo/                macOS app target (thin shell; @main lives here).
+design/nocturne/         Vendored design system + concept mockups (visual source of truth).
 Tests/                   Swift Testing suites (hermetic; no live cluster).
 project.yml              XcodeGen manifest (source of truth; .xcodeproj is generated + gitignored).
 Tools/                   Vendored, pinned XcodeGen (no Homebrew needed).

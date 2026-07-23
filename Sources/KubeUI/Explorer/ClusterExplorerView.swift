@@ -1,0 +1,117 @@
+import KubeClient
+import KubeCore
+import SwiftUI
+
+/// Concept **1a — the everyday cluster explorer** and the app's main window:
+/// a glass navigation sidebar over an edge-to-edge solid content pane, a
+/// unified toolbar, and a log dock. This is the shared, platform-agnostic
+/// surface; the macOS app target only supplies the window + a `ClusterClient`.
+public struct ClusterExplorerView: View {
+    @State private var model: ExplorerModel
+
+    public init(client: any ClusterClient) {
+        _model = State(initialValue: ExplorerModel(client: client))
+    }
+
+    public var body: some View {
+        NavigationSplitView {
+            SidebarView(selection: $model.selection, podCount: model.pods.count)
+                .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 300)
+        } detail: {
+            detail
+                .background(WallBackground())
+                .toolbar { toolbar }
+        }
+        .navigationTitle(model.selection.title)
+        .task { await model.loadPods() }
+        .tint(Nocturne.accent)
+    }
+
+    @ViewBuilder private var detail: some View {
+        switch model.selection {
+        case .pods:
+            PodsContentPane(pods: model.pods, loadError: model.loadError)
+        default:
+            ComingSoonPane(kind: model.selection)
+        }
+    }
+
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigation) {
+            Label("prod-eks", systemImage: "cube")
+                .labelStyle(.titleAndIcon)
+                .tint(Nocturne.accent200)
+        }
+        ToolbarItemGroup(placement: .principal) {
+            Button {
+            } label: {
+                Label("Status", systemImage: "line.3.horizontal.decrease")
+            }
+            Button {
+            } label: {
+                Label("Age", systemImage: "arrow.up.arrow.down")
+            }
+        }
+        ToolbarItemGroup(placement: .primaryAction) {
+            Button {
+            } label: {
+                Image(systemName: "magnifyingglass")
+            }
+            Button {
+            } label: {
+                Label("Ask", systemImage: "sparkles")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Nocturne.accent)
+        }
+    }
+}
+
+/// The Pods pane: the table edge-to-edge with the log dock pinned to the bottom.
+private struct PodsContentPane: View {
+    let pods: [Pod]
+    let loadError: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PodsTableView(pods: pods, loadError: loadError)
+                .frame(maxHeight: .infinity)
+            LogDockView(followed: "argocd-repo-server-5f7b-jc9wd", lines: Self.sampleLog)
+                .padding([.horizontal, .bottom], Nocturne.Space.s3)
+        }
+    }
+
+    static let sampleLog: [LogDockView.Line] = [
+        .init(
+            time: "09:41:13.201", level: .warn,
+            message: "git credential template store not found, falling back"),
+        .init(
+            time: "09:41:13.334", level: .error,
+            message: "failed to init repo cache: dial tcp 10.0.44.9:6379: connect: connection refused"),
+        .init(
+            time: "09:41:13.335", level: .error, message: "redis unreachable — see redis-master-0 (Pending)"),
+    ]
+}
+
+/// Placeholder for kinds whose panes aren't built yet — keeps the navigation
+/// whole while features land behind the seams.
+private struct ComingSoonPane: View {
+    let kind: ResourceKind
+
+    var body: some View {
+        ContentUnavailableView {
+            Label(kind.title, systemImage: kind.systemImage)
+        } description: {
+            Text("This pane isn't built yet — the seam is here.")
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+#if DEBUG
+#Preview {
+    ClusterExplorerView(client: FakeClusterClient())
+        .frame(width: 1040, height: 680)
+        .preferredColorScheme(.dark)
+}
+#endif

@@ -2,11 +2,21 @@
   "items": [
     {
       "metadata": {
-        "name": "web",
-        "namespace": "default",
-        "uid": "55555555-5555-5555-5555-555555555555",
-        "creationTimestamp": "2026-07-22T17:57:59Z",
-        "labels": { "app": "web" }
+        "name": "cert-manager",
+        "namespace": "cert-manager",
+        "uid": "55555555-0000-0000-0000-000000000001",
+        "creationTimestamp": "2026-07-08T09:40:00Z",
+        "labels": { "app": "cert-manager" }
+      },
+      "spec": { "replicas": 1 }
+    },
+    {
+      "metadata": {
+        "name": "argocd-repo-server",
+        "namespace": "argocd",
+        "uid": "55555555-0000-0000-0000-000000000002",
+        "creationTimestamp": "2026-07-22T07:40:00Z",
+        "labels": { "app": "argocd-repo-server" }
       },
       "spec": { "replicas": 2 }
     }

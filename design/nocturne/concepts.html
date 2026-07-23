@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/nocturne-68c4f4fd-b659-460f-825c-7d7f3e956f6c/styles.css">
+<script src="_ds/nocturne-68c4f4fd-b659-460f-825c-7d7f3e956f6c/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<style>
+  body{margin:0;background:#0a0b12;font-family:var(--font-body)}
+  .dv-turn{padding:48px 52px 40px;scroll-margin-top:16px}
+  .dv-thd{display:flex;align-items:baseline;gap:12px;margin:0 0 8px}
+  .dv-tid{font:600 11px ui-monospace,Menlo,monospace;padding:4px 9px;background:var(--color-accent);color:#141322;border-radius:5px;text-decoration:none}
+  .dv-tname{font:500 15px/1.3 var(--font-heading);color:var(--color-text)}
+  .dv-intro{font:400 13.5px/1.65 var(--font-body);color:color-mix(in srgb,var(--color-text) 64%,transparent);max-width:820px;margin:0 0 8px}
+  .dv-rule{display:inline-flex;align-items:center;gap:7px;margin:6px 0 30px;font:500 11.5px var(--font-heading);color:var(--color-accent-200);background:color-mix(in srgb,var(--color-accent) 15%,transparent);border:1px solid color-mix(in srgb,var(--color-accent) 30%,transparent);padding:5px 11px;border-radius:20px}
+  .dv-opts{display:flex;flex-wrap:wrap;gap:52px;align-items:flex-start}
+  .dv-opt{flex:none;display:flex;flex-direction:column;gap:12px;scroll-margin-top:16px}
+  .dv-oid{font:600 11px ui-monospace,Menlo,monospace;padding:3px 8px;background:color-mix(in srgb,var(--color-text) 12%,transparent);color:var(--color-text);border-radius:5px;text-decoration:none}
+  .dv-opt:target .dv-oid{background:var(--color-accent);color:#141322}
+  .dv-olabel{display:flex;align-items:baseline;gap:10px;font:400 12.5px/1.4 var(--font-body);color:color-mix(in srgb,var(--color-text) 60%,transparent)}
+  .dv-olabel b{color:var(--color-text);font-weight:500}
+  .dv-next{margin:34px 0 0;font:13px/1.6 var(--font-body);color:color-mix(in srgb,var(--color-text) 50%,transparent)}
+  .dv-next a{color:var(--color-accent);text-decoration:none}
+
+  /* ── macOS window + Liquid Glass material ───────────────────────── */
+  .win{position:relative;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px rgba(233,233,237,.09),0 40px 90px rgba(0,0,0,.65);isolation:isolate}
+  /* refractive desktop the glass bends light from */
+  .wall{position:absolute;inset:0;background:
+      radial-gradient(620px 440px at 16% 10%,rgba(145,132,217,.42),transparent 62%),
+      radial-gradient(720px 520px at 86% 84%,rgba(74,86,178,.36),transparent 64%),
+      radial-gradient(520px 520px at 62% 26%,rgba(120,150,214,.20),transparent 60%),
+      linear-gradient(155deg,#14162200,#0b0c13);
+    background-color:#0e0f18}
+  /* solid CONTENT layer — no glass on content, per Apple HIG */
+  .content{position:absolute;inset:10px;border-radius:14px;background:#191b27;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(233,233,237,.05)}
+  /* the glass NAVIGATION layer */
+  .glass{background:linear-gradient(158deg,rgba(41,45,64,.60),rgba(24,26,40,.46));
+    -webkit-backdrop-filter:blur(30px) saturate(180%) brightness(1.06);backdrop-filter:blur(30px) saturate(180%) brightness(1.06);
+    border:1px solid rgba(233,233,237,.10);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 .5px rgba(255,255,255,.04),0 12px 36px rgba(0,0,0,.5)}
+  .glass-thin{background:linear-gradient(158deg,rgba(46,50,70,.52),rgba(30,32,48,.40));
+    -webkit-backdrop-filter:blur(24px) saturate(170%) brightness(1.08);backdrop-filter:blur(24px) saturate(170%) brightness(1.08);
+    border:1px solid rgba(233,233,237,.10);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.20),0 6px 20px rgba(0,0,0,.4)}
+  .tl{position:absolute;top:17px;left:19px;display:flex;gap:8px;z-index:30}
+  .tl i{width:12px;height:12px;border-radius:50%;display:block}
+  .gpill{display:inline-flex;align-items:center;gap:4px;padding:4px;border-radius:11px}
+  .gbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;border:0;background:transparent;color:color-mix(in srgb,var(--color-text) 82%,transparent);font:500 12px var(--font-heading);cursor:pointer}
+  .gbtn:hover{background:rgba(255,255,255,.10)}
+  .gbtn.on{background:rgba(255,255,255,.14);color:var(--color-text);box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+  .gbtn-accent{color:var(--color-accent-200);background:linear-gradient(rgba(145,132,217,.40),rgba(145,132,217,.26));box-shadow:inset 0 1px 0 rgba(255,255,255,.28)}
+  .gbtn-accent:hover{background:linear-gradient(rgba(145,132,217,.52),rgba(145,132,217,.34))}
+  .sdrow{display:flex;align-items:center;gap:9px;padding:6px 10px;border-radius:9px;font:400 13px var(--font-body);color:color-mix(in srgb,var(--color-text) 74%,transparent);cursor:pointer;position:relative}
+  .sdrow:hover{background:rgba(255,255,255,.07)}
+  .sdrow.on{background:linear-gradient(rgba(145,132,217,.36),rgba(145,132,217,.22));color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.24)}
+  .sdrow i{font-size:15px;opacity:.9}
+  .sdcap{font:600 10px var(--font-heading);letter-spacing:.11em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 42%,transparent);padding:15px 10px 6px}
+  .krow td{padding:8px 12px;font:400 13px var(--font-body);color:color-mix(in srgb,var(--color-text) 82%,transparent);border-bottom:1px solid rgba(233,233,237,.06)}
+  .krow:hover td{background:rgba(233,233,237,.035)}
+  .kth{padding:8px 12px;font:600 10px var(--font-heading);letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 48%,transparent);text-align:left;border-bottom:1px solid rgba(233,233,237,.09)}
+  .st{display:inline-flex;align-items:center;gap:6px;font:500 12px var(--font-body)}
+  .st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+  .st-ok{color:#5fb489}.st-warn{color:#e0b464}.st-err{color:#e08585}.st-info{color:var(--color-accent-200)}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+  .pnode{border:1px solid rgba(233,233,237,.10);background:linear-gradient(#20222f,#1a1c28);border-radius:12px;padding:12px 14px;width:212px;box-shadow:0 6px 18px rgba(0,0,0,.38)}
+  .pnode.sel{border-color:transparent;box-shadow:0 0 0 1.5px var(--color-accent),0 0 26px color-mix(in srgb,var(--color-accent) 34%,transparent)}
+  .pcap{font:600 10px var(--font-heading);letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 55%,transparent)}
+  .chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 9px;border-radius:11px;font:500 11px var(--font-body);background:color-mix(in srgb,var(--color-accent) 20%,transparent);color:var(--color-accent-100)}
+  .field-lbl{font:500 12px var(--font-heading);color:color-mix(in srgb,var(--color-text) 84%,transparent);display:flex;align-items:center;gap:6px;margin-bottom:5px}
+  .req{color:#e08585;font-size:11px}
+  .kinput{width:100%;height:33px;padding:0 11px;border-radius:8px;border:1px solid rgba(233,233,237,.12);background:rgba(12,13,20,.6);color:var(--color-text);font:400 13px var(--font-body)}
+  .kinput:focus-visible{border-color:var(--color-accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--color-accent) 25%,transparent)}
+  .assist{font:400 11px/1.45 var(--font-body);color:color-mix(in srgb,var(--color-text) 50%,transparent);margin-top:5px;display:flex;gap:5px}
+  .assist .ph{color:var(--color-accent-200);font-size:12px;flex:none;margin-top:1px}
+  .yl{display:block;font:400 12px/1.7 ui-monospace,Menlo,monospace;white-space:pre;color:color-mix(in srgb,var(--color-text) 64%,transparent)}
+  .rev{display:flex;gap:10px;padding:9px 11px;border-radius:9px;cursor:pointer}
+  .rev:hover{background:rgba(255,255,255,.06)}
+  .rev.on{background:linear-gradient(rgba(145,132,217,.30),rgba(145,132,217,.18));box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
+  .diff{font:400 12.5px/1.8 ui-monospace,Menlo,monospace;white-space:pre}
+  .diff .add{background:color-mix(in srgb,#5fb489 16%,transparent);color:#9fdcbc;display:block}
+  .diff .del{background:color-mix(in srgb,#e08585 15%,transparent);color:#e8adad;display:block}
+  .diff .ctx{color:color-mix(in srgb,var(--color-text) 46%,transparent);display:block}
+  .logln{font:400 11.5px/1.7 ui-monospace,Menlo,monospace;white-space:pre;color:color-mix(in srgb,var(--color-text) 66%,transparent)}
+  .logln .t{color:color-mix(in srgb,var(--color-text) 34%,transparent)}
+  .logln .lv{color:var(--color-accent-200)}
+  .logln .w{color:#e0b464}.logln .e{color:#e08585}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Liquid Glass rebuild — four concepts, built the Mac Tahoe way</span></div>
+  <p class="dv-intro">Same four pillars, now on Apple's Liquid Glass material (macOS 26/27). Sidebars, toolbars and inspectors are real translucent glass that refracts the desktop and the content scrolling behind them; the accent is the tinted-glass color. <a class="dv-oid" href="#1a">1a</a> everyday explorer · <a class="dv-oid" href="#1b">1b</a> flagship pipeline view · <a class="dv-oid" href="#1c">1c</a> CRD→form · <a class="dv-oid" href="#1d">1d</a> time machine.</p>
+  <span class="dv-rule"><i class="ph-bold ph-stack"></i>HIG rule followed: glass on the navigation layer only — content (tables, lists, the graph) stays solid for readability</span>
+
+  <div class="dv-opts">
+
+    <!-- ===================== 1a — Cluster explorer ===================== -->
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a><b>Cluster explorer</b> — glass sidebar + floating toolbar over an edge-to-edge content pane</div>
+      <div class="win" style="width:1140px;height:700px">
+        <div class="wall"></div>
+        <div class="content">
+          <!-- content scrolls edge-to-edge; text is inset so glass never covers it -->
+          <div style="padding:60px 20px 0 262px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px"><h4 style="margin:0;font-size:20px">Pods</h4><span class="tag tag-neutral">all namespaces · 48</span></div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr><th class="kth">Name</th><th class="kth">Namespace</th><th class="kth">Status</th><th class="kth" style="text-align:right">Restarts</th><th class="kth" style="text-align:right">Age</th><th class="kth">Node</th></tr></thead>
+              <tbody>
+                <tr class="krow"><td class="mono">cert-manager-7d9f8c-4nzp2</td><td>cert-manager</td><td><span class="st st-ok">Running</span></td><td style="text-align:right">0</td><td style="text-align:right">14d</td><td class="mono" style="opacity:.6">ip-10-0-3-91</td></tr>
+                <tr class="krow"><td class="mono">traefik-6b5c4d9f7-h2xk8</td><td>traefik</td><td><span class="st st-ok">Running</span></td><td style="text-align:right">0</td><td style="text-align:right">9d</td><td class="mono" style="opacity:.6">ip-10-0-2-14</td></tr>
+                <tr class="krow" style="background:color-mix(in srgb,var(--color-accent) 10%,transparent)"><td class="mono">argocd-repo-server-5f7b-jc9wd</td><td>argocd</td><td><span class="st st-err">CrashLoopBackOff</span></td><td style="text-align:right;color:#e08585">7</td><td style="text-align:right">2h</td><td class="mono" style="opacity:.6">ip-10-0-3-91</td></tr>
+                <tr class="krow"><td class="mono">datadog-agent-mkq7v</td><td>datadog</td><td><span class="st st-ok">Running</span></td><td style="text-align:right">1</td><td style="text-align:right">21d</td><td class="mono" style="opacity:.6">ip-10-0-1-56</td></tr>
+                <tr class="krow"><td class="mono">keda-operator-6c8d9b5f4-9wm2t</td><td>keda</td><td><span class="st st-ok">Running</span></td><td style="text-align:right">0</td><td style="text-align:right">30d</td><td class="mono" style="opacity:.6">ip-10-0-2-14</td></tr>
+                <tr class="krow"><td class="mono">redis-master-0</td><td>redis</td><td><span class="st st-warn">Pending</span></td><td style="text-align:right">0</td><td style="text-align:right">3m</td><td class="mono" style="opacity:.6">—</td></tr>
+                <tr class="krow"><td class="mono">prometheus-k8s-0</td><td>monitoring</td><td><span class="st st-ok">Running</span></td><td style="text-align:right">0</td><td style="text-align:right">6d</td><td class="mono" style="opacity:.6">ip-10-0-1-56</td></tr>
+                <tr class="krow"><td class="mono">grafana-84fd9c7b6-tq5rn</td><td>monitoring</td><td><span class="st st-ok">Running</span></td><td style="text-align:right">0</td><td style="text-align:right">6d</td><td class="mono" style="opacity:.6">ip-10-0-3-91</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- log dock: solid content, glass header bar floats on it -->
+          <div style="position:absolute;left:262px;right:12px;bottom:12px;height:180px;border-radius:12px;background:rgba(9,10,16,.82);overflow:hidden;box-shadow:inset 0 0 0 1px rgba(233,233,237,.06)">
+            <div style="padding:26px 14px 8px">
+              <span class="logln"><span class="t">09:41:13.201</span> <span class="w">WARN</span>  git credential template store not found, falling back</span>
+              <span class="logln"><span class="t">09:41:13.334</span> <span class="e">ERROR</span> failed to init repo cache: dial tcp 10.0.44.9:6379: connect: connection refused</span>
+              <span class="logln"><span class="t">09:41:13.335</span> <span class="e">FATAL</span> redis unreachable — see redis-master-0 (Pending)</span>
+            </div>
+            <div class="glass-thin gpill" style="position:absolute;top:8px;left:10px;right:10px;border-radius:10px;height:34px;padding:0 6px;justify-content:flex-start">
+              <span class="st st-err" style="font-size:11px;margin:0 6px">argocd-repo-server-5f7b-jc9wd</span>
+              <span style="font-size:11px;color:color-mix(in srgb,var(--color-text) 42%,transparent)">· following</span>
+              <span style="margin-left:auto"></span>
+              <button class="gbtn" style="height:24px"><i class="ph ph-terminal-window"></i>Exec</button>
+              <button class="gbtn gbtn-accent" style="height:24px"><i class="ph ph-sparkle"></i>Explain</button>
+            </div>
+          </div>
+        </div>
+        <!-- glass sidebar (refracts wallpaper + content behind) -->
+        <div class="glass" style="position:absolute;left:10px;top:10px;bottom:10px;width:240px;border-radius:14px;padding:44px 9px 10px;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.08);box-shadow:inset 0 1px 0 rgba(255,255,255,.16);margin-bottom:2px">
+            <span class="st st-ok"></span>
+            <div style="flex:1"><div style="font:500 13px var(--font-heading)">prod-eks</div><div class="mono" style="font-size:10px;color:color-mix(in srgb,var(--color-text) 46%,transparent)">us-east-1 · EKS 1.31</div></div>
+            <i class="ph ph-caret-up-down" style="color:color-mix(in srgb,var(--color-text) 48%,transparent)"></i>
+          </div>
+          <div class="sdcap">Workloads</div>
+          <div class="sdrow on"><i class="ph ph-shipping-container"></i>Pods<span style="margin-left:auto;font-size:11px;opacity:.7">48</span></div>
+          <div class="sdrow"><i class="ph ph-stack"></i>Deployments<span style="margin-left:auto;font-size:11px;opacity:.55">17</span></div>
+          <div class="sdrow"><i class="ph ph-database"></i>StatefulSets<span style="margin-left:auto;font-size:11px;opacity:.55">4</span></div>
+          <div class="sdcap">Custom Resources</div>
+          <div class="sdrow"><i class="ph ph-certificate"></i>Certificates<span class="st st-warn" style="margin-left:auto"></span></div>
+          <div class="sdrow"><i class="ph ph-git-branch"></i>Applications<span style="margin-left:auto;font-size:11px;opacity:.55">22</span></div>
+          <div class="sdrow"><i class="ph ph-gauge"></i>ScaledObjects</div>
+          <div style="margin-top:auto;display:flex;align-items:center;gap:8px;padding:9px 10px;font-size:11px;color:color-mix(in srgb,var(--color-text) 55%,transparent)"><i class="ph ph-lock-simple" style="color:#5fb489"></i>kubeconfig stays on this Mac</div>
+        </div>
+        <div class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+        <!-- floating unified glass toolbar -->
+        <div class="glass gpill" style="position:absolute;top:12px;left:262px;right:12px;height:44px;border-radius:13px;padding:0 7px">
+          <i class="ph-bold ph-cube" style="color:var(--color-accent-200);margin:0 6px 0 4px"></i>
+          <span style="font:500 13px var(--font-heading);color:color-mix(in srgb,var(--color-text) 88%,transparent)">prod-eks</span>
+          <div style="width:1px;height:20px;background:rgba(255,255,255,.12);margin:0 8px"></div>
+          <button class="gbtn"><i class="ph ph-funnel"></i>Status</button>
+          <button class="gbtn"><i class="ph ph-arrows-down-up"></i>Age</button>
+          <span style="margin-left:auto"></span>
+          <div class="glass-thin gpill" style="height:30px;padding:0 3px;margin-right:4px" title="macOS 27 clear↔tinted glass"><button class="gbtn on" style="height:24px;font-size:11px">Tinted</button><button class="gbtn" style="height:24px;font-size:11px">Clear</button></div>
+          <button class="gbtn"><i class="ph ph-magnifying-glass"></i></button>
+          <button class="gbtn gbtn-accent"><i class="ph ph-sparkle"></i>Ask</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 1b — Pipeline / relationship view ===================== -->
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a><b>Pipeline view</b> — the flagship; glass inspector floats over the causal graph</div>
+      <div class="win" style="width:1140px;height:700px">
+        <div class="wall"></div>
+        <div class="content" style="background:radial-gradient(1000px 460px at 34% 6%,#1d2030,#141520)">
+          <!-- graph is CONTENT: solid nodes, no glass -->
+          <div style="padding:64px 20px 0 30px;font:600 10px var(--font-heading);letter-spacing:.11em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 42%,transparent)">owner chain · left triggers right</div>
+          <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" aria-hidden="true">
+            <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#565a72" stroke-width="1.3"></path></marker>
+            <marker id="ara" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="none" stroke="#9184d9" stroke-width="1.5"></path></marker></defs>
+            <path d="M254,150 H300" stroke="#565a72" stroke-width="1.5" fill="none" marker-end="url(#ar)"></path>
+            <path d="M254,332 H300" stroke="#9184d9" stroke-width="1.8" fill="none" marker-end="url(#ara)"></path>
+            <path d="M254,514 H300" stroke="#565a72" stroke-width="1.5" fill="none" marker-end="url(#ar)"></path>
+            <path d="M542,332 C574,332 578,332 606,332" stroke="#565a72" stroke-width="1.5" stroke-dasharray="4 4" fill="none" marker-end="url(#ar)"></path>
+          </svg>
+          <div style="position:absolute;left:30px;top:128px"><div class="pnode"><div style="display:flex;align-items:center;gap:7px;margin-bottom:7px"><i class="ph ph-certificate" style="color:var(--color-accent-200)"></i><span class="pcap">Certificate</span></div><div class="mono" style="font-size:13px">api-tls</div><div class="st st-warn" style="margin-top:8px">Not ready</div></div></div>
+          <div style="position:absolute;left:304px;top:84px"><div class="pnode"><div style="display:flex;align-items:center;gap:7px;margin-bottom:7px"><i class="ph ph-file-text" style="color:var(--color-accent-200)"></i><span class="pcap">CertificateRequest</span></div><div class="mono" style="font-size:13px">api-tls-1</div><div class="st st-ok" style="margin-top:8px">Approved</div></div></div>
+          <div style="position:absolute;left:304px;top:268px"><div class="pnode sel"><div style="display:flex;align-items:center;gap:7px;margin-bottom:7px"><i class="ph ph-shopping-bag" style="color:var(--color-accent-200)"></i><span class="pcap">Order</span></div><div class="mono" style="font-size:13px">api-tls-1-88</div><div class="st st-err" style="margin-top:8px">Pending</div></div></div>
+          <div style="position:absolute;left:304px;top:450px"><div class="pnode" style="opacity:.7;border-style:dashed"><div style="display:flex;align-items:center;gap:7px;margin-bottom:7px"><i class="ph ph-key" style="color:color-mix(in srgb,var(--color-text) 55%,transparent)"></i><span class="pcap">Secret (referenced)</span></div><div class="mono" style="font-size:13px">api-tls</div><div class="st" style="margin-top:8px;color:color-mix(in srgb,var(--color-text) 46%,transparent)">Not written yet</div></div></div>
+          <div style="position:absolute;left:610px;top:282px"><div class="pnode" style="border-color:#6a5638"><div style="display:flex;align-items:center;gap:7px;margin-bottom:7px"><i class="ph ph-shield-check" style="color:#e0b464"></i><span class="pcap">Challenge · DNS-01</span></div><div class="mono" style="font-size:13px">api-tls-1-88-0</div><div class="st st-err" style="margin-top:8px">Failing</div></div></div>
+          <div style="position:absolute;left:610px;top:392px;width:212px;font:400 11px/1.5 var(--font-body);color:color-mix(in srgb,var(--color-text) 48%,transparent)"><i class="ph ph-arrow-bend-up-left"></i> root cause — the chain stops here</div>
+        </div>
+        <div class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+        <!-- floating glass toolbar -->
+        <div class="glass gpill" style="position:absolute;top:12px;left:12px;right:352px;height:44px;border-radius:13px;padding:0 7px">
+          <i class="ph-bold ph-graph" style="color:var(--color-accent-200);margin:0 6px 0 68px"></i>
+          <span style="font:500 13px var(--font-heading)">api-tls</span><span style="font-size:12px;color:color-mix(in srgb,var(--color-text) 45%,transparent);margin-left:6px">cert-manager</span>
+          <span style="margin-left:auto"></span>
+          <button class="gbtn"><i class="ph ph-clock-counter-clockwise"></i>Timeline</button>
+          <button class="gbtn"><i class="ph ph-arrows-out"></i>Fit</button>
+        </div>
+        <!-- glass inspector floating over the graph -->
+        <div class="glass" style="position:absolute;top:12px;right:12px;bottom:12px;width:328px;border-radius:14px;display:flex;flex-direction:column;overflow:hidden">
+          <div style="padding:15px 17px;border-bottom:1px solid rgba(233,233,237,.08)">
+            <div class="pcap" style="color:var(--color-accent-200)">Order · api-tls-1-88</div>
+            <div class="st st-err" style="margin-top:8px">Pending — 24m</div>
+          </div>
+          <div style="padding:15px 17px;border-bottom:1px solid rgba(233,233,237,.08)">
+            <div class="pcap" style="margin-bottom:11px">Event timeline</div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;gap:10px"><span class="st st-ok" style="margin-top:3px"></span><div><div style="font-size:12.5px">Order created</div><div style="font-size:11px;color:color-mix(in srgb,var(--color-text) 44%,transparent)">by cert-manager · 24m ago</div></div></div>
+              <div style="display:flex;gap:10px"><span class="st st-info" style="margin-top:3px"></span><div><div style="font-size:12.5px">Presented DNS-01 challenge</div><div style="font-size:11px;color:color-mix(in srgb,var(--color-text) 44%,transparent)">_acme-challenge.api.prod · 23m ago</div></div></div>
+              <div style="display:flex;gap:10px"><span class="st st-err" style="margin-top:3px"></span><div><div style="font-size:12.5px">Propagation check failed</div><div style="font-size:11px;color:color-mix(in srgb,var(--color-text) 44%,transparent)">Route53 NXDOMAIN · retrying · 1m ago</div></div></div>
+            </div>
+          </div>
+          <div style="margin:15px 17px;padding:13px;border-radius:11px;background:linear-gradient(rgba(145,132,217,.22),rgba(145,132,217,.12));border:1px solid rgba(145,132,217,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.16)">
+            <div style="display:flex;align-items:center;gap:7px;font:600 11px var(--font-heading);color:var(--color-accent-100);margin-bottom:6px"><i class="ph-bold ph-sparkle"></i>Scoped answer · on-device</div>
+            <div style="font:400 12.5px/1.55 var(--font-body);color:color-mix(in srgb,var(--color-text) 86%,transparent)"><b>api-tls</b> is stuck because its Order's DNS-01 Challenge can't resolve <span class="mono">_acme-challenge.api.prod</span> — Route53 returns NXDOMAIN. The Secret won't be written until it clears.</div>
+          </div>
+          <div style="margin-top:auto;padding:14px 17px;border-top:1px solid rgba(233,233,237,.08);display:flex;gap:8px">
+            <button class="gbtn glass-thin" style="flex:1;height:32px"><i class="ph ph-file-text"></i>YAML</button>
+            <button class="gbtn gbtn-accent" style="flex:1;height:32px"><i class="ph ph-arrow-clockwise"></i>Retry order</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 1c — CRD to dynamic form ===================== -->
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a><b>CRD → form</b> — schema becomes UI; glass toolbar + inspector, solid form</div>
+      <div class="win" style="width:1020px;height:660px">
+        <div class="wall"></div>
+        <div class="content">
+          <div style="padding:66px 26px 22px;height:100%;overflow:hidden">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:3px"><h4 style="margin:0;font-size:19px">ScaledObject</h4><span class="tag tag-outline">from OpenAPI v3 schema</span></div>
+            <p style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 50%,transparent);margin:0 0 18px">Fields generated deterministically from the CRD. Required marked <span class="req">*</span>.</p>
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;gap:16px">
+                <div style="flex:1"><div class="field-lbl">metadata.name <span class="req">*</span></div><input class="kinput" value="redis-consumer-scaler"></div>
+                <div style="width:150px"><div class="field-lbl">namespace <span class="req">*</span></div><input class="kinput" value="redis"></div>
+              </div>
+              <div style="display:flex;gap:16px">
+                <div style="flex:1"><div class="field-lbl">scaleTargetRef.name <span class="req">*</span></div><input class="kinput" value="consumer-worker"><div class="assist"><i class="ph ph-sparkle"></i>Only Deployments in <b>redis</b> match — 1 found.</div></div>
+                <div style="width:120px"><div class="field-lbl">minReplicas</div><input class="kinput mono" value="1"></div>
+                <div style="width:120px"><div class="field-lbl">maxReplicas</div><input class="kinput mono" value="20"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:2px"><span style="font:600 11px var(--font-heading);letter-spacing:.05em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 55%,transparent)">triggers</span><span class="tag tag-neutral">array · 1</span></div>
+              <div style="border:1px solid rgba(233,233,237,.09);border-radius:12px;padding:16px;background:rgba(12,13,20,.4)">
+                <div style="display:flex;gap:16px;margin-bottom:14px">
+                  <div style="flex:1"><div class="field-lbl">type <span class="req">*</span></div><div style="position:relative"><select class="kinput" style="appearance:none;padding-right:28px"><option>redis</option><option>cpu</option><option>prometheus</option></select><i class="ph ph-caret-down" style="position:absolute;right:11px;top:9px;pointer-events:none;color:color-mix(in srgb,var(--color-text) 45%,transparent)"></i></div><div class="assist"><i class="ph ph-info"></i>enum from schema</div></div>
+                  <div style="flex:1"><div class="field-lbl">metadata.listName <span class="req">*</span></div><input class="kinput" value="jobs:pending"></div>
+                </div>
+                <div style="display:flex;gap:16px">
+                  <div style="flex:1"><div class="field-lbl">metadata.address <span class="req">*</span></div><input class="kinput mono" value="redis-master.redis:6379"></div>
+                  <div style="width:120px"><div class="field-lbl">listLength</div><input class="kinput mono" value="5"><div class="assist"><i class="ph ph-sparkle"></i>Suggested 5.</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+        <div class="glass gpill" style="position:absolute;top:12px;left:12px;right:12px;height:44px;border-radius:13px;padding:0 7px">
+          <i class="ph-bold ph-brackets-curly" style="color:var(--color-accent-200);margin:0 6px 0 68px"></i>
+          <span style="font:500 13px var(--font-heading)">New ScaledObject</span><span style="font-size:11px;color:color-mix(in srgb,var(--color-text) 45%,transparent);margin-left:6px">keda.sh/v1alpha1</span>
+          <span style="margin-left:auto"></span>
+          <div class="glass-thin gpill" style="height:30px;padding:0 3px;margin-right:6px"><button class="gbtn on" style="height:24px;font-size:11px">Form</button><button class="gbtn" style="height:24px;font-size:11px">YAML</button></div>
+          <button class="gbtn"><i class="ph ph-eye"></i>Dry-run</button>
+          <button class="gbtn gbtn-accent"><i class="ph ph-check"></i>Apply</button>
+        </div>
+        <!-- glass YAML inspector -->
+        <div class="glass" style="position:absolute;top:68px;right:12px;bottom:12px;width:300px;border-radius:14px;display:flex;flex-direction:column;overflow:hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid rgba(233,233,237,.08);display:flex;align-items:center;gap:8px"><i class="ph ph-file-text" style="color:var(--color-accent-200)"></i><span style="font:500 12px var(--font-heading)">Live YAML</span><span class="st st-ok" style="margin-left:auto;font-size:11px">valid</span></div>
+          <div style="flex:1;overflow:hidden;padding:14px 16px"><span class="yl"><span style="color:color-mix(in srgb,var(--color-text) 42%,transparent)">apiVersion:</span> keda.sh/v1alpha1
+<span style="color:color-mix(in srgb,var(--color-text) 42%,transparent)">kind:</span> ScaledObject
+<span style="color:color-mix(in srgb,var(--color-text) 42%,transparent)">metadata:</span>
+  name: <span style="color:var(--color-accent-100)">redis-consumer-scaler</span>
+  namespace: redis
+<span style="color:color-mix(in srgb,var(--color-text) 42%,transparent)">spec:</span>
+  scaleTargetRef:
+    name: consumer-worker
+  minReplicaCount: 1
+  maxReplicaCount: 20
+  triggers:
+  - type: redis
+    metadata:
+      listName: jobs:pending
+      address: redis-master.redis:6379
+      listLength: "5"</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 1d — Time machine ===================== -->
+    <div class="dv-opt" id="1d">
+      <div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a><b>Time machine</b> — glass scrubber floats over the diff; captured history + revert</div>
+      <div class="win" style="width:1020px;height:640px">
+        <div class="wall"></div>
+        <div class="content">
+          <div style="display:flex;height:100%">
+            <!-- revision list (content) -->
+            <div style="width:288px;flex:none;border-right:1px solid rgba(233,233,237,.06);padding:118px 10px 10px;overflow:hidden">
+              <div class="rev"><i class="ph ph-git-commit" style="color:color-mix(in srgb,var(--color-text) 45%,transparent);margin-top:2px"></i><div><div style="font-size:13px">rev 9 · <span style="color:color-mix(in srgb,var(--color-text) 55%,transparent)">current</span></div><div style="font-size:11px;color:color-mix(in srgb,var(--color-text) 44%,transparent)">image → traefik:v3.2.1 · 1h ago</div></div></div>
+              <div class="rev"><i class="ph ph-git-commit" style="color:#e0b464;margin-top:2px"></i><div><div style="font-size:13px">rev 8</div><div style="font-size:11px;color:color-mix(in srgb,var(--color-text) 44%,transparent)">replicas 3 → 2 · 4h ago</div></div></div>
+              <div class="rev on"><i class="ph ph-git-commit" style="color:var(--color-accent-200);margin-top:2px"></i><div><div style="font-size:13px">rev 7 <span class="chip" style="height:18px;padding:0 7px;margin-left:4px">restore point</span></div><div style="font-size:11px;color:color-mix(in srgb,var(--color-text) 44%,transparent)">last known-good · 12h ago</div></div></div>
+              <div class="rev"><i class="ph ph-git-commit" style="color:color-mix(in srgb,var(--color-text) 45%,transparent);margin-top:2px"></i><div><div style="font-size:13px">rev 6</div><div style="font-size:11px;color:color-mix(in srgb,var(--color-text) 44%,transparent)">env EXTRA_ARGS added · 2d ago</div></div></div>
+              <div class="rev"><i class="ph ph-git-commit" style="color:color-mix(in srgb,var(--color-text) 45%,transparent);margin-top:2px"></i><div><div style="font-size:13px">rev 5</div><div style="font-size:11px;color:color-mix(in srgb,var(--color-text) 44%,transparent)">limits raised · 5d ago</div></div></div>
+            </div>
+            <!-- diff (content) -->
+            <div style="flex:1;padding:118px 20px 76px;overflow:hidden;min-width:0">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><span style="font:500 13px var(--font-heading)">Diff</span><span class="mono" style="font-size:11px;color:color-mix(in srgb,var(--color-text) 45%,transparent)">rev 7 → rev 9 (current)</span></div>
+              <span class="diff"><span class="ctx">  spec:</span><span class="ctx">    replicas: 2</span><span class="ctx">    template:</span><span class="ctx">      spec:</span><span class="ctx">        containers:</span><span class="ctx">        - name: traefik</span><span class="del">-           image: traefik:v3.1.4</span><span class="add">+           image: traefik:v3.2.1</span><span class="ctx">          args:</span><span class="del">-             - "--entrypoints.web.address=:80"</span><span class="add">+             - "--entrypoints.web.address=:8000"</span><span class="ctx">          resources:</span><span class="ctx">            limits:</span><span class="ctx">              cpu: 500m</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="tl"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+        <!-- glass toolbar -->
+        <div class="glass gpill" style="position:absolute;top:12px;left:12px;right:12px;height:44px;border-radius:13px;padding:0 7px">
+          <i class="ph-bold ph-clock-counter-clockwise" style="color:var(--color-accent-200);margin:0 6px 0 68px"></i>
+          <span style="font:500 13px var(--font-heading)">deployment/traefik</span>
+          <span style="margin-left:auto"></span>
+          <button class="gbtn"><i class="ph ph-cloud"></i>Synced via iCloud</button>
+        </div>
+        <!-- glass timeline scrubber floating over the diff -->
+        <div class="glass" style="position:absolute;top:66px;left:12px;right:12px;height:60px;border-radius:13px;padding:9px 18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span class="pcap">Captured revisions · 30 days</span><span style="font-size:11px;color:var(--color-accent-200)">rev 7 selected · 12h ago</span></div>
+          <div style="position:relative;height:12px">
+            <div style="position:absolute;left:0;right:0;top:5px;height:2px;background:linear-gradient(to right,transparent,rgba(233,233,237,.22) 24px,rgba(233,233,237,.22) calc(100% - 24px),transparent)"></div>
+            <span style="position:absolute;left:6%;top:1px;width:10px;height:10px;border-radius:50%;background:#5fb489"></span>
+            <span style="position:absolute;left:30%;top:1px;width:10px;height:10px;border-radius:50%;background:#5fb489"></span>
+            <span style="position:absolute;left:54%;top:1px;width:10px;height:10px;border-radius:50%;background:#e0b464;box-shadow:0 0 8px #e0b464"></span>
+            <span style="position:absolute;left:72%;top:-3px;width:18px;height:18px;border-radius:50%;background:color-mix(in srgb,var(--color-accent) 30%,transparent);border:2px solid var(--color-accent);box-shadow:0 0 16px color-mix(in srgb,var(--color-accent) 55%,transparent)"></span>
+            <span style="position:absolute;left:92%;top:1px;width:10px;height:10px;border-radius:50%;background:#5fb489"></span>
+          </div>
+        </div>
+        <!-- glass action bar -->
+        <div class="glass gpill" style="position:absolute;bottom:12px;left:300px;right:12px;height:52px;border-radius:13px;padding:0 14px">
+          <i class="ph ph-warning" style="color:#e0b464;margin-right:8px"></i>
+          <span style="font:400 11.5px/1.4 var(--font-body);color:color-mix(in srgb,var(--color-text) 62%,transparent);max-width:420px">Revert re-applies rev 7's stored spec — not true undo. Finalizers, immutable fields and side effects don't reverse.</span>
+          <span style="margin-left:auto"></span>
+          <button class="gbtn glass-thin" style="height:32px"><i class="ph ph-git-diff"></i>Compare</button>
+          <button class="gbtn gbtn-accent" style="height:32px;margin-left:8px"><i class="ph ph-arrow-u-up-left"></i>Revert to rev 7</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">Try next: "add a live specular sheen that tracks the cursor" · "show the iPad companion of <a class="dv-oid" href="#1a">1a</a> with a glass tab bar" · "make <a class="dv-oid" href="#1b">1b</a> full-bleed with a glass minimap" · "a clearer, less-tinted glass variant" · "design the App Store hero screenshot from <a class="dv-oid" href="#1b">1b</a>"</p>
+</section>
+</x-dc>
+</body>
+</html>
