@@ -11,6 +11,7 @@ struct PodsTableView: View {
     var now: Date = Date()
 
     @State private var selection: Pod.ID?
+    @State private var sortOrder: [KeyPathComparator<Pod>] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -48,28 +49,32 @@ struct PodsTableView: View {
         .padding(.bottom, Nocturne.Space.s3)
     }
 
+    private var sortedPods: [Pod] {
+        sortOrder.isEmpty ? pods : pods.sorted(using: sortOrder)
+    }
+
     private var table: some View {
-        Table(pods, selection: $selection) {
-            TableColumn("Name") { pod in
+        Table(sortedPods, selection: $selection, sortOrder: $sortOrder) {
+            TableColumn("Name", value: \.sortName) { pod in
                 Text(pod.metadata.name).font(Nocturne.Font.mono)
             }
-            TableColumn("Namespace") { pod in
+            TableColumn("Namespace", value: \.sortNamespace) { pod in
                 Text(pod.metadata.namespace ?? "—").font(Nocturne.Font.body)
             }
-            TableColumn("Status") { pod in
+            TableColumn("Status", value: \.sortStatus) { pod in
                 StatusLabel(pod.displayStatus, health: pod.health)
             }
-            TableColumn("Restarts") { pod in
+            TableColumn("Restarts", value: \.restartCount) { pod in
                 Text("\(pod.restartCount)")
                     .font(Nocturne.Font.body)
                     .foregroundStyle(pod.restartCount > 0 ? Nocturne.statusError : Nocturne.text)
             }
             .width(70)
-            TableColumn("Age") { pod in
+            TableColumn("Age", value: \.sortCreated) { pod in
                 Text(pod.metadata.age(now: now) ?? "—").font(Nocturne.Font.body)
             }
             .width(60)
-            TableColumn("Node") { pod in
+            TableColumn("Node", value: \.sortNode) { pod in
                 Text(pod.spec?.nodeName ?? "—")
                     .font(Nocturne.Font.mono)
                     .foregroundStyle(Nocturne.muted(0.6))
@@ -77,5 +82,15 @@ struct PodsTableView: View {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: false))
         .scrollContentBackground(.hidden)
+        .threeStateSort($sortOrder)
     }
+}
+
+extension KubeCore.Pod {
+    /// Non-optional keys for `Table` column sorting.
+    fileprivate var sortName: String { metadata.name }
+    fileprivate var sortNamespace: String { metadata.namespace ?? "" }
+    fileprivate var sortStatus: String { displayStatus }
+    fileprivate var sortNode: String { spec?.nodeName ?? "" }
+    fileprivate var sortCreated: Date { metadata.creationTimestamp ?? .distantPast }
 }

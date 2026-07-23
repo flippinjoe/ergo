@@ -25,17 +25,25 @@ final class ExplorerModel {
     private(set) var isLoading = false
     private(set) var loadError: String?
     private(set) var activeSourceKind: ClusterSource.Kind?
+    /// When the visible data was last refreshed (for the auto-update indicator).
+    private(set) var lastUpdated: Date?
+
+    /// How often the current view silently refreshes. A stand-in for a future
+    /// watch stream — the refresh seam is here.
+    let pollInterval: Duration = .seconds(5)
 
     private let provider: any ClusterClientProviding
     private var client: (any ClusterClient)?
+    private var pollingTask: Task<Void, Never>?
 
     init(clientProvider: any ClusterClientProviding) {
         self.provider = clientProvider
     }
 
     /// Point the explorer at a connection (or nothing). Builds its client, loads
-    /// namespaces, and loads the current selection.
+    /// namespaces, and starts refreshing the current selection.
     func activate(_ connection: ClusterConnection?) async {
+        stopPolling()
         guard let connection else {
             client = nil
             pods = []
@@ -53,7 +61,8 @@ final class ExplorerModel {
             activeSourceKind = connection.source.kind
             // Namespaces are best-effort — some clusters restrict listing them.
             namespaces = (try? await client.listNamespaces()) ?? []
-            await reload()
+            await load(showSpinner: true)
+            startPolling()
         } catch {
             self.client = nil
             pods = []
@@ -64,16 +73,38 @@ final class ExplorerModel {
         }
     }
 
-    private func reloadTask() {
-        Task { await reload() }
+    /// Stops background refresh — call from the view's `onDisappear`.
+    func stopPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
     }
 
-    /// Loads the current selection for the current namespace.
-    func reload() async {
+    private func reloadTask() {
+        // Selection/namespace changed: show the spinner and restart the poll.
+        Task {
+            await load(showSpinner: true)
+            startPolling()
+        }
+    }
+
+    private func startPolling() {
+        pollingTask?.cancel()
+        pollingTask = Task { [weak self, interval = pollInterval] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: interval)
+                if Task.isCancelled { break }
+                await self?.load(showSpinner: false)
+            }
+        }
+    }
+
+    /// Loads the current selection for the current namespace. `showSpinner` is
+    /// false for background polls so the view doesn't flicker, and a transient
+    /// poll error keeps the last-known data instead of blanking the table.
+    func load(showSpinner: Bool) async {
         guard let client else { return }
-        isLoading = true
-        loadError = nil
-        defer { isLoading = false }
+        if showSpinner { isLoading = true }
+        defer { if showSpinner { isLoading = false } }
         let now = Date()
         do {
             switch selection {
@@ -93,10 +124,15 @@ final class ExplorerModel {
                 let items = try await client.listDynamic(gvr, namespace: selectedNamespace)
                 setRows(items.map { ResourceRow(dynamic: $0, now: now) })
             }
+            loadError = nil
+            lastUpdated = now
         } catch {
-            pods = []
-            rows = []
-            loadError = message(for: error)
+            if showSpinner {
+                pods = []
+                rows = []
+                loadError = message(for: error)
+            }
+            // Background poll failures are ignored — keep showing last-known data.
         }
     }
 

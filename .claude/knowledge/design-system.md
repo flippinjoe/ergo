@@ -47,6 +47,24 @@ readability** (Apple HIG, and the mockups' stated rule).
 | `.glassPanel()` / `.contentSurface()` / `WallBackground` | `Theme/Materials.swift` | The material layer. |
 | Data table | `Explorer/PodsTableView.swift` | Native `Table`; columns map to model fields. |
 
+## Explorer behaviors
+
+- **Sortable tables**: both `PodsTableView` and the generic `ResourceTableView`
+  use SwiftUI `Table(sortOrder:)`. `TableSort`/`threeStateSort` add a
+  three-state header cycle (ascending → descending → off) on top of the native
+  two-state toggle. Columns sort on non-optional keys (e.g. Age sorts by the
+  underlying `Date`, not the "3d" string).
+- **Live updates**: `ExplorerModel` polls the current view every
+  `pollInterval` (5s) via `load(showSpinner: false)` — silent, keeps selection,
+  and keeps last-known data on a transient error. The poll restarts on
+  cluster/kind/namespace change and stops on `onDisappear`. This is a seam for a
+  future Kubernetes **watch** stream (HTTP/2 streaming GET `?watch=1`), which
+  would replace polling behind the same `load`/rows update path. The toolbar
+  "Live" pill signals it.
+- **Toolbar**: namespace filter is leading (near the content it scopes); the
+  Live indicator, search, and Ask are trailing. Cluster identity lives in the
+  sidebar switcher, not the toolbar.
+
 ## Screen architecture
 
 `ClusterExplorerView` (concept **1a**) is the main window: a `NavigationSplitView`

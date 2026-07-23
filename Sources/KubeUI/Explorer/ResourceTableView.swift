@@ -13,6 +13,11 @@ struct ResourceTableView: View {
     let isLoading: Bool
 
     @State private var selection: ResourceRow.ID?
+    @State private var sortOrder: [KeyPathComparator<ResourceRow>] = []
+
+    private var sortedRows: [ResourceRow] {
+        sortOrder.isEmpty ? rows : rows.sorted(using: sortOrder)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -50,31 +55,32 @@ struct ResourceTableView: View {
     }
 
     private var table: some View {
-        Table(rows, selection: $selection) {
-            TableColumn("Name") { row in
+        Table(sortedRows, selection: $selection, sortOrder: $sortOrder) {
+            TableColumn("Name", value: \.name) { row in
                 Text(row.name).font(Nocturne.Font.mono)
             }
-            TableColumn("Namespace") { row in
+            TableColumn("Namespace", value: \.sortNamespace) { row in
                 Text(row.namespace ?? "—").font(Nocturne.Font.body)
             }
-            TableColumn("Status") { row in
+            TableColumn("Status", value: \.sortStatus) { row in
                 StatusLabel(row.statusText ?? Self.label(for: row.health), health: row.health)
             }
             if let detailTitle {
-                TableColumn(detailTitle) { row in
+                TableColumn(detailTitle, value: \.sortDetail) { row in
                     Text(row.detail ?? "—")
                         .font(Nocturne.Font.body)
                         .foregroundStyle(row.health == .ok ? Nocturne.text : Nocturne.statusWarn)
                 }
                 .width(70)
             }
-            TableColumn("Age") { row in
+            TableColumn("Age", value: \.sortCreated) { row in
                 Text(row.age ?? "—").font(Nocturne.Font.body)
             }
             .width(60)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: false))
         .scrollContentBackground(.hidden)
+        .threeStateSort($sortOrder)
     }
 
     /// Fallback status text when the resource exposes no explicit status string.

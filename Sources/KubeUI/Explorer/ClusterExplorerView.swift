@@ -40,6 +40,7 @@ public struct ClusterExplorerView: View {
         .task { await clusters.load() }
         // Rebuild + reload whenever the selected cluster changes.
         .task(id: clusters.selectedID) { await model.activate(clusters.selected) }
+        .onDisappear { model.stopPolling() }
         .tint(Nocturne.accent)
         .sheet(isPresented: $showingAdd) {
             AddClusterSheet(azure: clusters.azure) { connections in
@@ -75,12 +76,9 @@ public struct ClusterExplorerView: View {
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        // Leading: the scope filter (namespace). Grouped here, near the content
+        // it filters, instead of floating in the toolbar's center.
         ToolbarItemGroup(placement: .navigation) {
-            Label(clusters.selected?.displayName ?? "No cluster", systemImage: "cube")
-                .labelStyle(.titleAndIcon)
-                .tint(Nocturne.accent200)
-        }
-        ToolbarItemGroup(placement: .principal) {
             Menu {
                 Button {
                     model.selectedNamespace = nil
@@ -98,14 +96,18 @@ public struct ClusterExplorerView: View {
                     }
                 }
             } label: {
-                Label(model.selectedNamespace ?? "All namespaces", systemImage: "square.stack.3d.up")
+                Label(model.selectedNamespace ?? "All namespaces", systemImage: "line.3.horizontal.decrease")
             }
+            .help("Filter by namespace")
         }
+        // Trailing: live-status, search, and the AI action.
         ToolbarItemGroup(placement: .primaryAction) {
+            LiveIndicator(isLoading: model.isLoading)
             Button {
             } label: {
                 Image(systemName: "magnifyingglass")
             }
+            .help("Search")
             Button {
             } label: {
                 Label("Ask", systemImage: "sparkles")
@@ -120,6 +122,26 @@ public struct ClusterExplorerView: View {
             Label(title, systemImage: "checkmark")
         } else {
             Text(title)
+        }
+    }
+}
+
+/// A small "Live" pill signaling the view auto-updates.
+private struct LiveIndicator: View {
+    let isLoading: Bool
+    @State private var pulse = false
+
+    var body: some View {
+        HStack(spacing: Nocturne.Space.s2) {
+            Circle()
+                .fill(Nocturne.statusOK)
+                .frame(width: 6, height: 6)
+                .opacity(pulse ? 0.35 : 1)
+            Text("Live").font(Nocturne.Font.small).foregroundStyle(Nocturne.muted(0.7))
+        }
+        .help("Auto-updating")
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
         }
     }
 }
