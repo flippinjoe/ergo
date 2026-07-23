@@ -11,6 +11,7 @@ public struct ClusterExplorerView: View {
     @State private var clusters: ClustersModel
     @State private var showingAdd = false
     @State private var showingManage = false
+    @State private var showingNamespaces = false
 
     public init(
         clientProvider: any ClusterClientProviding = StaticClusterClientProvider(FakeClusterClient()),
@@ -89,26 +90,15 @@ public struct ClusterExplorerView: View {
         // Leading: the scope filter (namespace). Grouped here, near the content
         // it filters, instead of floating in the toolbar's center.
         ToolbarItemGroup(placement: .navigation) {
-            Menu {
-                Button {
-                    model.selectedNamespace = nil
-                } label: {
-                    namespaceLabel("All namespaces", selected: model.selectedNamespace == nil)
-                }
-                if !model.namespaces.isEmpty {
-                    Divider()
-                    ForEach(model.namespaces, id: \.self) { namespace in
-                        Button {
-                            model.selectedNamespace = namespace
-                        } label: {
-                            namespaceLabel(namespace, selected: model.selectedNamespace == namespace)
-                        }
-                    }
-                }
+            Button {
+                showingNamespaces.toggle()
             } label: {
-                Label(model.selectedNamespace ?? "All namespaces", systemImage: "line.3.horizontal.decrease")
+                Label(namespaceSummary, systemImage: "line.3.horizontal.decrease")
             }
             .help("Filter by namespace")
+            .popover(isPresented: $showingNamespaces, arrowEdge: .bottom) {
+                NamespaceFilterView(namespaces: model.namespaces, selection: $model.selectedNamespaces)
+            }
         }
         // Trailing: live-status, search, and the AI action.
         ToolbarItemGroup(placement: .primaryAction) {
@@ -127,11 +117,11 @@ public struct ClusterExplorerView: View {
         }
     }
 
-    @ViewBuilder private func namespaceLabel(_ title: String, selected: Bool) -> some View {
-        if selected {
-            Label(title, systemImage: "checkmark")
-        } else {
-            Text(title)
+    private var namespaceSummary: String {
+        switch model.selectedNamespaces.count {
+        case 0: "All namespaces"
+        case 1: model.selectedNamespaces.first ?? "All namespaces"
+        default: "\(model.selectedNamespaces.count) namespaces"
         }
     }
 }

@@ -66,9 +66,15 @@ readability** (Apple HIG, and the mockups' stated rule).
   content) with the object's metadata (namespace, age, UID, labels), **owner
   references**, and recent **events** (pillar 1). Built from the raw watch
   object's `metadata` (works for any kind) plus a filtered `listEvents`.
-- **Toolbar**: namespace filter is leading (near the content it scopes); the
-  Live indicator, search, and Ask are trailing. Cluster identity lives in the
-  sidebar switcher, not the toolbar.
+- **Toolbar**: the namespace filter is leading (near the content it scopes);
+  the Live indicator, search, and Ask are trailing. Cluster identity lives in
+  the sidebar switcher, not the toolbar.
+- **Namespace filter (multi-select)**: a popover (`NamespaceFilterView`) with an
+  "All namespaces" checkbox + a checkbox per namespace (Lens-style), backed by
+  `ExplorerModel.selectedNamespaces: Set<String>` (empty = all). Filtering is
+  **client-side** over the cluster-wide watch (`applyFilter` / the pure
+  `matches(namespace:selection:)`), so toggling is instant with no stream
+  restart.
 - **Log streaming**: selecting a pod streams its logs into the dock via
   `ClusterClient.streamLogs` (live: `GET …/pods/{name}/log?follow=true` consumed
   line-by-line through `StreamingHTTPClient.streamLines` over the CA-pinned

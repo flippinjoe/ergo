@@ -13,9 +13,10 @@ final class ExplorerModel {
     var selection: ResourceKind = .pods {
         didSet { if selection != oldValue { restartWatch() } }
     }
-    /// nil = all namespaces.
-    var selectedNamespace: String? {
-        didSet { if selectedNamespace != oldValue { restartWatch() } }
+    /// The namespaces to show; empty = all. Applied as a client-side filter over
+    /// the cluster-wide watch, so toggling is instant (no stream restart).
+    var selectedNamespaces: Set<String> = [] {
+        didSet { if selectedNamespaces != oldValue { applyFilter() } }
     }
     /// The selected row's id (uid). Drives the inspector and, on Pods, logs.
     var selectedID: String? {
@@ -30,6 +31,9 @@ final class ExplorerModel {
     private(set) var namespaces: [String] = []
     private(set) var pods: [Pod] = []
     private(set) var rows: [ResourceRow] = []
+    // Full (all-namespace) sets; `pods`/`rows` are these filtered by selection.
+    private var fullPods: [Pod] = []
+    private var fullRows: [ResourceRow] = []
     private(set) var counts: [ResourceKind: Int] = [:]
     private(set) var isLoading = false
     private(set) var loadError: String?
@@ -75,7 +79,7 @@ final class ExplorerModel {
             activeSourceKind = nil
             return
         }
-        selectedNamespace = nil
+        selectedNamespaces = []
         counts = [:]
         do {
             let client = try await provider.makeClient(for: connection)
@@ -111,10 +115,10 @@ final class ExplorerModel {
         loadError = nil
         let kind = selection
         let gvr = kind.gvr
-        let namespace = selectedNamespace
         watchTask = Task { [weak self] in
             do {
-                for try await snapshot in client.watch(gvr, namespace: namespace) {
+                // Always watch cluster-wide; namespace selection is a client-side filter.
+                for try await snapshot in client.watch(gvr, namespace: nil) {
                     if Task.isCancelled { break }
                     guard let self else { break }
                     self.apply(snapshot, for: kind)
@@ -137,32 +141,43 @@ final class ExplorerModel {
         let now = Date()
         switch kind {
         case .pods:
-            let pods = snapshot.compactMap { try? decoder.decode(Pod.self, from: $0.data) }
+            fullPods = snapshot.compactMap { try? decoder.decode(Pod.self, from: $0.data) }
                 .sorted(by: Self.byNamespaceName)
-            self.pods = pods
-            rows = []
-            counts[.pods] = pods.count
-            // A newly-arrived selected pod can now start streaming logs.
-            if followedPod == nil, selectedID != nil { updateLogStream() }
+            fullRows = []
         case .deployments:
-            let items = snapshot.compactMap { try? decoder.decode(Deployment.self, from: $0.data) }
+            fullPods = []
+            fullRows = snapshot.compactMap { try? decoder.decode(Deployment.self, from: $0.data) }
                 .sorted(by: Self.byNamespaceName)
-            setRows(items.map { ResourceRow(deployment: $0, now: now) }, kind: kind)
+                .map { ResourceRow(deployment: $0, now: now) }
         case .statefulSets:
-            let items = snapshot.compactMap { try? decoder.decode(StatefulSet.self, from: $0.data) }
+            fullPods = []
+            fullRows = snapshot.compactMap { try? decoder.decode(StatefulSet.self, from: $0.data) }
                 .sorted(by: Self.byNamespaceName)
-            setRows(items.map { ResourceRow(statefulSet: $0, now: now) }, kind: kind)
+                .map { ResourceRow(statefulSet: $0, now: now) }
         case .certificates, .applications, .scaledObjects:
-            let items = snapshot.compactMap { LiveKubernetesClient.dynamicResource(fromJSON: $0.data) }
+            fullPods = []
+            fullRows = snapshot.compactMap { LiveKubernetesClient.dynamicResource(fromJSON: $0.data) }
                 .sorted { ($0.namespace ?? "", $0.name) < ($1.namespace ?? "", $1.name) }
-            setRows(items.map { ResourceRow(dynamic: $0, now: now) }, kind: kind)
+                .map { ResourceRow(dynamic: $0, now: now) }
         }
+        applyFilter()
+        // A newly-arrived selected pod can now start streaming logs.
+        if kind == .pods, followedPod == nil, selectedID != nil { updateLogStream() }
     }
 
-    private func setRows(_ rows: [ResourceRow], kind: ResourceKind) {
-        self.rows = rows
-        pods = []
-        counts[kind] = rows.count
+    /// Recomputes the displayed `pods`/`rows` from the full sets using the
+    /// selected-namespace filter (empty = all).
+    private func applyFilter() {
+        pods = fullPods.filter {
+            Self.matches(namespace: $0.metadata.namespace, selection: selectedNamespaces)
+        }
+        rows = fullRows.filter { Self.matches(namespace: $0.namespace, selection: selectedNamespaces) }
+        counts[selection] = selection == .pods ? pods.count : rows.count
+    }
+
+    /// Whether a namespace passes the filter. Empty selection matches everything.
+    nonisolated static func matches(namespace: String?, selection: Set<String>) -> Bool {
+        selection.isEmpty || (namespace.map(selection.contains) ?? false)
     }
 
     private static func byNamespaceName<T: MetadataProviding>(_ a: T, _ b: T) -> Bool {
