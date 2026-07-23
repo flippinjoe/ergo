@@ -56,6 +56,23 @@ public struct FakeClusterClient: ClusterClient {
         []
     }
 
+    public func streamLogs(
+        namespace: String, pod: String, container: String?
+    )
+        -> AsyncThrowingStream<String, Error>
+    {
+        // Emit a few canned lines so the demo dock is populated, then finish.
+        AsyncThrowingStream { continuation in
+            let sample = [
+                "2026-07-23T09:41:13.201Z INFO  starting \(pod)",
+                "2026-07-23T09:41:13.334Z WARN  git credential template store not found, falling back",
+                "2026-07-23T09:41:13.335Z ERROR failed to init repo cache: connection refused",
+            ]
+            for line in sample { continuation.yield(line) }
+            continuation.finish()
+        }
+    }
+
     // MARK: - Fixture loading
 
     /// A Kubernetes list response: `{ "items": [...] }`.

@@ -21,6 +21,12 @@ public protocol ClusterClient: Sendable {
     /// Generic list of any resource type (the pillar-2 seam) — used for CRDs
     /// with no compiled-in type.
     func listDynamic(_ gvr: GroupVersionResource, namespace: String?) async throws -> [DynamicResource]
+    /// Streams a pod's logs (`follow=true`) as they're produced. Read-only.
+    /// Terminating the stream closes the connection.
+    func streamLogs(
+        namespace: String, pod: String, container: String?
+    )
+        -> AsyncThrowingStream<String, Error>
 }
 
 /// Pillar 2 (schema & AI): fetches the OpenAPI schema for a resource type so

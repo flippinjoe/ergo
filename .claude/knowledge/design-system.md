@@ -64,6 +64,11 @@ readability** (Apple HIG, and the mockups' stated rule).
 - **Toolbar**: namespace filter is leading (near the content it scopes); the
   Live indicator, search, and Ask are trailing. Cluster identity lives in the
   sidebar switcher, not the toolbar.
+- **Log streaming**: selecting a pod streams its logs into the dock via
+  `ClusterClient.streamLogs` (live: `GET …/pods/{name}/log?follow=true` consumed
+  line-by-line through `StreamingHTTPClient.streamLines` over the CA-pinned
+  session). `ExplorerModel` owns the stream lifecycle (restart on pod change,
+  cancel on leave); `LogLine` parses timestamp + severity; the dock auto-scrolls.
 
 ## Screen architecture
 

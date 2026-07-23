@@ -11,12 +11,24 @@ import SwiftUI
 @Observable
 final class ExplorerModel {
     var selection: ResourceKind = .pods {
-        didSet { if selection != oldValue { reloadTask() } }
+        didSet {
+            if selection != oldValue {
+                reloadTask()
+                updateLogStream()
+            }
+        }
     }
     /// nil = all namespaces.
     var selectedNamespace: String? {
         didSet { if selectedNamespace != oldValue { reloadTask() } }
     }
+    /// The pod whose logs the dock follows (bound from the pods table).
+    var selectedPodID: Pod.ID? {
+        didSet { if selectedPodID != oldValue { updateLogStream() } }
+    }
+
+    private(set) var logLines: [LogLine] = []
+    private(set) var followedPod: String?
 
     private(set) var namespaces: [String] = []
     private(set) var pods: [Pod] = []
@@ -35,6 +47,8 @@ final class ExplorerModel {
     private let provider: any ClusterClientProviding
     private var client: (any ClusterClient)?
     private var pollingTask: Task<Void, Never>?
+    private var logTask: Task<Void, Never>?
+    private let maxLogLines = 1000
 
     init(clientProvider: any ClusterClientProviding) {
         self.provider = clientProvider
@@ -44,6 +58,8 @@ final class ExplorerModel {
     /// namespaces, and starts refreshing the current selection.
     func activate(_ connection: ClusterConnection?) async {
         stopPolling()
+        stopLogStream()
+        selectedPodID = nil
         guard let connection else {
             client = nil
             pods = []
@@ -73,10 +89,56 @@ final class ExplorerModel {
         }
     }
 
-    /// Stops background refresh — call from the view's `onDisappear`.
+    /// Stops all background work — call from the view's `onDisappear`.
+    func stop() {
+        stopPolling()
+        stopLogStream()
+    }
+
+    /// Stops background refresh.
     func stopPolling() {
         pollingTask?.cancel()
         pollingTask = nil
+    }
+
+    // MARK: - Log streaming
+
+    private func stopLogStream() {
+        logTask?.cancel()
+        logTask = nil
+    }
+
+    /// (Re)starts the pod-log stream for the current selection. Only streams on
+    /// the Pods view with a selected pod that exists in the loaded list.
+    private func updateLogStream() {
+        stopLogStream()
+        logLines = []
+        followedPod = nil
+        guard selection == .pods, let id = selectedPodID,
+            let pod = pods.first(where: { $0.id == id }), let client
+        else { return }
+
+        followedPod = pod.metadata.name
+        let namespace = pod.metadata.namespace ?? "default"
+        let name = pod.metadata.name
+        let container = pod.status?.containerStatuses?.first?.name
+        logTask = Task { [weak self] in
+            do {
+                for try await raw in client.streamLogs(
+                    namespace: namespace, pod: name, container: container)
+                {
+                    if Task.isCancelled { break }
+                    self?.appendLog(LogLine(raw: raw))
+                }
+            } catch {
+                self?.appendLog(LogLine(raw: "— log stream ended: \(self?.message(for: error) ?? "")"))
+            }
+        }
+    }
+
+    private func appendLog(_ line: LogLine) {
+        logLines.append(line)
+        if logLines.count > maxLogLines { logLines.removeFirst(logLines.count - maxLogLines) }
     }
 
     private func reloadTask() {

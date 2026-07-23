@@ -10,6 +10,12 @@ public protocol HTTPClient: Sendable {
     func send(_ request: HTTPRequest) async throws -> HTTPResponse
 }
 
+/// A client that can consume a long-lived streaming response line by line —
+/// used for `follow=true` log streams (and, later, watch streams).
+public protocol StreamingHTTPClient: HTTPClient {
+    func streamLines(_ request: HTTPRequest) -> AsyncThrowingStream<String, Error>
+}
+
 public struct HTTPRequest: Sendable {
     public enum Method: String, Sendable { case get = "GET", post = "POST" }
 

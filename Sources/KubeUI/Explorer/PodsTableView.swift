@@ -10,7 +10,7 @@ struct PodsTableView: View {
     /// Injected so ages are stable in previews/tests; defaults to the wall clock.
     var now: Date = Date()
 
-    @State private var selection: Pod.ID?
+    @Binding var selection: Pod.ID?
     @State private var sortOrder: [KeyPathComparator<Pod>] = []
 
     var body: some View {

@@ -59,6 +59,11 @@ let package = Package(
             dependencies: ["KubeClient", "KubeCore"],
             swiftSettings: .strict
         ),
+        .testTarget(
+            name: "KubeUITests",
+            dependencies: ["KubeUI", "KubeClient", "KubeCore"],
+            swiftSettings: .strict
+        ),
     ]
 )
 

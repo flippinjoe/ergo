@@ -40,7 +40,7 @@ public struct ClusterExplorerView: View {
         .task { await clusters.load() }
         // Rebuild + reload whenever the selected cluster changes.
         .task(id: clusters.selectedID) { await model.activate(clusters.selected) }
-        .onDisappear { model.stopPolling() }
+        .onDisappear { model.stop() }
         .tint(Nocturne.accent)
         .sheet(isPresented: $showingAdd) {
             AddClusterSheet(azure: clusters.azure) { connections in
@@ -62,7 +62,9 @@ public struct ClusterExplorerView: View {
                 pods: model.pods,
                 loadError: model.loadError,
                 isLoading: model.isLoading,
-                isLive: model.activeSourceKind != nil && model.activeSourceKind != .mock
+                selection: $model.selectedPodID,
+                followedPod: model.followedPod,
+                logLines: model.logLines
             )
         default:
             ResourceTableView(
@@ -151,48 +153,17 @@ private struct PodsContentPane: View {
     let pods: [Pod]
     let loadError: String?
     let isLoading: Bool
-    let isLive: Bool
+    @Binding var selection: Pod.ID?
+    let followedPod: String?
+    let logLines: [LogLine]
 
     var body: some View {
         VStack(spacing: 0) {
-            PodsTableView(pods: pods, loadError: loadError, isLoading: isLoading)
+            PodsTableView(pods: pods, loadError: loadError, isLoading: isLoading, selection: $selection)
                 .frame(maxHeight: .infinity)
-            // Sample logs only for the demo cluster; live clusters show an
-            // honest "coming soon" rather than fabricated log lines.
-            if isLive {
-                LogDockView(followed: nil, lines: [])
-                    .padding([.horizontal, .bottom], Nocturne.Space.s3)
-            } else {
-                LogDockView(followed: "argocd-repo-server-5f7b-jc9wd", lines: Self.sampleLog)
-                    .padding([.horizontal, .bottom], Nocturne.Space.s3)
-            }
+            LogDockView(followed: followedPod, lines: logLines)
+                .padding([.horizontal, .bottom], Nocturne.Space.s3)
         }
-    }
-
-    static let sampleLog: [LogDockView.Line] = [
-        .init(
-            time: "09:41:13.201", level: .warn,
-            message: "git credential template store not found, falling back"),
-        .init(
-            time: "09:41:13.334", level: .error,
-            message: "failed to init repo cache: dial tcp 10.0.44.9:6379: connect: connection refused"),
-        .init(
-            time: "09:41:13.335", level: .error, message: "redis unreachable — see redis-master-0 (Pending)"),
-    ]
-}
-
-/// Placeholder for kinds whose panes aren't built yet — keeps the navigation
-/// whole while features land behind the seams.
-private struct ComingSoonPane: View {
-    let kind: ResourceKind
-
-    var body: some View {
-        ContentUnavailableView {
-            Label(kind.title, systemImage: kind.systemImage)
-        } description: {
-            Text("This pane isn't built yet — the seam is here.")
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

@@ -27,6 +27,29 @@ private final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
     }
 }
 
+/// A streaming client that records the requested URL and replays canned lines.
+private final class CapturingStreamingClient: StreamingHTTPClient, @unchecked Sendable {
+    let lines: [String]
+    private let lock = NSLock()
+    private var _lastURL: String?
+    var lastURL: String? { lock.withLock { _lastURL } }
+
+    init(lines: [String]) { self.lines = lines }
+
+    func send(_ request: HTTPRequest) async throws -> HTTPResponse {
+        HTTPResponse(status: 200, body: Data())
+    }
+
+    func streamLines(_ request: HTTPRequest) -> AsyncThrowingStream<String, Error> {
+        lock.withLock { _lastURL = request.url.absoluteString }
+        let lines = lines
+        return AsyncThrowingStream { continuation in
+            for line in lines { continuation.yield(line) }
+            continuation.finish()
+        }
+    }
+}
+
 @Suite("Live Kubernetes client (fakes)")
 struct LiveKubernetesClientTests {
     private let podListJSON = """
@@ -137,6 +160,28 @@ struct LiveKubernetesClientTests {
         let notReady = try #require(crs.first { $0.name == "web-tls" })
         #expect(notReady.health == .error)
         #expect(notReady.statusText == "DoesNotExist")
+    }
+
+    @Test("Log streaming yields lines and targets the follow endpoint")
+    func logStreaming() async throws {
+        let http = CapturingStreamingClient(lines: [
+            "2026-07-23T09:41:13.201Z INFO hello",
+            "2026-07-23T09:41:13.334Z ERROR boom",
+        ])
+        let live = LiveKubernetesClient(
+            baseURL: URL(string: "https://api.example.com:443")!,
+            http: http, tokenProvider: StaticTokenProvider("tkn"))
+
+        var lines: [String] = []
+        for try await line in live.streamLogs(namespace: "default", pod: "web", container: "app") {
+            lines.append(line)
+        }
+        #expect(lines.count == 2)
+
+        let url = try #require(http.lastURL)
+        #expect(url.contains("/api/v1/namespaces/default/pods/web/log"))
+        #expect(url.contains("follow=true"))
+        #expect(url.contains("container=app"))
     }
 
     @Test("Dynamic status falls back to Argo-style health, then phase")

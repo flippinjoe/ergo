@@ -65,6 +65,42 @@ public struct LiveKubernetesClient: ClusterClient {
         return items.map(Self.dynamicResource(from:))
     }
 
+    public func streamLogs(
+        namespace: String, pod: String, container: String?
+    )
+        -> AsyncThrowingStream<String, Error>
+    {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    guard let streaming = http as? StreamingHTTPClient else {
+                        throw KubernetesError.api(status: 0, body: "streaming not supported")
+                    }
+                    var query = "follow=true&tailLines=200&timestamps=true"
+                    if let container { query += "&container=\(container)" }
+                    let token = try await tokenProvider.token()
+                    guard
+                        let url = URL(
+                            string: baseURL.absoluteString
+                                + "/api/v1/namespaces/\(namespace)/pods/\(pod)/log?\(query)")
+                    else {
+                        throw KubernetesError.api(status: 0, body: "bad log URL")
+                    }
+                    let request = HTTPRequest(
+                        method: .get, url: url, headers: ["Authorization": "Bearer \(token)"])
+                    for try await line in streaming.streamLines(request) {
+                        if Task.isCancelled { break }
+                        continuation.yield(line)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
     // MARK: - Request
 
     private func get(_ path: String) async throws -> Data {

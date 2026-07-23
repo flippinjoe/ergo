@@ -8,7 +8,9 @@ import Security
 ///
 /// `@unchecked Sendable`: the CA anchors are immutable after init and the
 /// URLSession delegate is stateless.
-public final class KubernetesHTTPClient: NSObject, HTTPClient, URLSessionDelegate, @unchecked Sendable {
+public final class KubernetesHTTPClient: NSObject, HTTPClient, StreamingHTTPClient, URLSessionDelegate,
+    @unchecked Sendable
+{
     private let anchors: [SecCertificate]
     private lazy var session: URLSession = URLSession(
         configuration: .ephemeral, delegate: self, delegateQueue: nil)
@@ -20,14 +22,41 @@ public final class KubernetesHTTPClient: NSObject, HTTPClient, URLSessionDelegat
         super.init()
     }
 
-    public func send(_ request: HTTPRequest) async throws -> HTTPResponse {
+    private func urlRequest(from request: HTTPRequest) -> URLRequest {
         var urlRequest = URLRequest(url: request.url)
         urlRequest.httpMethod = request.method.rawValue
         urlRequest.httpBody = request.body
         for (key, value) in request.headers { urlRequest.setValue(value, forHTTPHeaderField: key) }
-        let (data, response) = try await session.data(for: urlRequest)
+        return urlRequest
+    }
+
+    public func send(_ request: HTTPRequest) async throws -> HTTPResponse {
+        let (data, response) = try await session.data(for: urlRequest(from: request))
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         return HTTPResponse(status: status, body: data)
+    }
+
+    /// Streams a long-lived response line by line (for `follow=true` logs). The
+    /// underlying URLSession task is cancelled when the stream is terminated.
+    public func streamLines(_ request: HTTPRequest) -> AsyncThrowingStream<String, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let (bytes, response) = try await session.bytes(for: urlRequest(from: request))
+                    if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                        throw KubernetesError.api(status: http.statusCode, body: "log stream failed")
+                    }
+                    for try await line in bytes.lines {
+                        if Task.isCancelled { break }
+                        continuation.yield(line)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
     }
 
     public func urlSession(
