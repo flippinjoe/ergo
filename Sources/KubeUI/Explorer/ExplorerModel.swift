@@ -16,14 +16,26 @@ final class ExplorerModel {
                 selectedID = nil
                 pods = []
                 rows = []
-                if let selection { expandedGroups.insert(Self.sectionID(for: selection)) }
+                if let selection {
+                    expandedGroups.insert(ResourceCatalog.sectionID(for: selection, grouping: grouping))
+                }
                 restartWatch()
                 fetchDescription()
             }
         }
     }
-    /// Expanded sidebar sections (by group id). Collapsed by default; the
-    /// selected resource's section is auto-expanded so it stays visible.
+    /// How the sidebar is organized (persisted). Changing it re-sections without
+    /// re-discovering.
+    var grouping: SidebarGrouping {
+        didSet {
+            if grouping != oldValue {
+                UserDefaults.standard.set(grouping.rawValue, forKey: Self.groupingKey)
+                rebuildSections()
+            }
+        }
+    }
+    /// Expanded sidebar sections. Collapsed by default; the selected resource's
+    /// section is auto-expanded so it stays visible.
     private(set) var expandedGroups: Set<String> = []
     /// Namespaces to show; empty = all. Client-side filter over a cluster-wide
     /// watch, so toggling is instant.
@@ -65,7 +77,9 @@ final class ExplorerModel {
     private var logTask: Task<Void, Never>?
     private var inspectorTask: Task<Void, Never>?
     private var rawObjects: [String: Data] = [:]
+    private var discovered: [APIResource] = []
     private let maxLogLines = 1000
+    private static let groupingKey = "ergo.sidebarGrouping"
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -74,6 +88,8 @@ final class ExplorerModel {
 
     init(clientProvider: any ClusterClientProviding) {
         self.provider = clientProvider
+        let stored = UserDefaults.standard.string(forKey: Self.groupingKey)
+        self.grouping = stored.flatMap(SidebarGrouping.init(rawValue:)) ?? .curated
     }
 
     /// Point the explorer at a connection: build its client, discover resources,
@@ -99,12 +115,12 @@ final class ExplorerModel {
             let client = try await provider.makeClient(for: connection)
             self.client = client
             activeSourceKind = connection.source.kind
-            let resources = try await client.discoverAPIResources()
-            sections = ResourceCatalog.sections(from: resources)
+            discovered = try await client.discoverAPIResources()
+            rebuildSections()
             namespaces = (try? await client.listNamespaces()) ?? []
             // Default to Pods if present, else the first resource.
             selection =
-                resources.first(where: ResourceCatalog.isPods)
+                discovered.first(where: ResourceCatalog.isPods)
                 ?? sections.first?.resources.first
             // restartWatch runs from selection's didSet (which also handled the
             // no-op case where selection stayed nil).
@@ -194,8 +210,14 @@ final class ExplorerModel {
 
     // MARK: - Sidebar sections
 
-    static func sectionID(for resource: APIResource) -> String {
-        resource.group.isEmpty ? "core" : resource.group
+    private func rebuildSections() {
+        sections = ResourceCatalog.sections(from: discovered, grouping: grouping)
+        // Reset expansion to just the selected resource's section.
+        if let selection {
+            expandedGroups = [ResourceCatalog.sectionID(for: selection, grouping: grouping)]
+        } else {
+            expandedGroups = []
+        }
     }
 
     func isExpanded(_ sectionID: String) -> Bool { expandedGroups.contains(sectionID) }

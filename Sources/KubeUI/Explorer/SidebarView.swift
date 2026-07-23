@@ -5,6 +5,7 @@ import SwiftUI
 /// types grouped by API group, and a privacy footer.
 struct SidebarView: View {
     @Binding var selection: APIResource?
+    @Binding var grouping: SidebarGrouping
     let sections: [SidebarSection]
     let counts: [String: Int]
     let expanded: Set<String>
@@ -18,6 +19,17 @@ struct SidebarView: View {
             ClusterSwitcher(clusters: clusters, onAddCluster: onAddCluster, onManage: onManage)
                 .padding(Nocturne.Space.s3)
                 .padding(.bottom, Nocturne.Space.s1)
+
+            Picker("Grouping", selection: $grouping) {
+                ForEach(SidebarGrouping.allCases, id: \.self) { grouping in
+                    Text(grouping.title).tag(grouping)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .controlSize(.small)
+            .padding(.horizontal, Nocturne.Space.s3)
+            .padding(.bottom, Nocturne.Space.s2)
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Nocturne.Space.s1) {

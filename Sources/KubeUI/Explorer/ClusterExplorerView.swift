@@ -26,6 +26,7 @@ public struct ClusterExplorerView: View {
         NavigationSplitView {
             SidebarView(
                 selection: $model.selection,
+                grouping: $model.grouping,
                 sections: model.sections,
                 counts: model.counts,
                 expanded: model.expandedGroups,
