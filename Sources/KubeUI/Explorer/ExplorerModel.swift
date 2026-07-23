@@ -53,6 +53,9 @@ final class ExplorerModel {
     }
 
     private(set) var sections: [SidebarSection] = []
+    /// Resource types pinned to the top of the sidebar, in the user's order.
+    /// Per-cluster and independent of the grouping mode.
+    private(set) var pinnedResources: [APIResource] = []
     private(set) var namespaces: [String] = []
     private(set) var pods: [Pod] = []
     private(set) var rows: [ResourceRow] = []
@@ -72,6 +75,12 @@ final class ExplorerModel {
     private var descriptionCache: [String: [String: String]] = [:]
 
     private let provider: any ClusterClientProviding
+    private let layoutStore: any SidebarLayoutStore
+    /// Stable key of the active cluster, used to scope its saved layout.
+    private var clusterKey: String?
+    /// Ordered pinned ids for the active cluster (superset of `pinnedResources`;
+    /// may hold ids not currently discovered). The display list is derived.
+    private var pinnedIDs: [String] = []
     private var client: (any ClusterClient)?
     private var watchTask: Task<Void, Never>?
     private var logTask: Task<Void, Never>?
@@ -86,8 +95,12 @@ final class ExplorerModel {
         return decoder
     }()
 
-    init(clientProvider: any ClusterClientProviding) {
+    init(
+        clientProvider: any ClusterClientProviding,
+        layoutStore: any SidebarLayoutStore = UserDefaultsSidebarLayoutStore()
+    ) {
         self.provider = clientProvider
+        self.layoutStore = layoutStore
         let stored = UserDefaults.standard.string(forKey: Self.groupingKey)
         self.grouping = stored.flatMap(SidebarGrouping.init(rawValue:)) ?? .curated
     }
@@ -102,6 +115,9 @@ final class ExplorerModel {
         sections = []
         counts = [:]
         selectedNamespaces = []
+        pinnedResources = []
+        pinnedIDs = []
+        clusterKey = connection?.source.identityKey
         guard let connection else {
             client = nil
             pods = []
@@ -117,6 +133,7 @@ final class ExplorerModel {
             activeSourceKind = connection.source.kind
             discovered = try await client.discoverAPIResources()
             rebuildSections()
+            loadPinned()
             namespaces = (try? await client.listNamespaces()) ?? []
             // Default to Pods if present, else the first resource.
             selection =
@@ -228,6 +245,54 @@ final class ExplorerModel {
         } else {
             expandedGroups.insert(sectionID)
         }
+    }
+
+    // MARK: - Pinned resources (per cluster)
+
+    /// The ids currently pinned, for marking rows in the grouped sections.
+    var pinnedIDSet: Set<String> { Set(pinnedIDs) }
+
+    func isPinned(_ resource: APIResource) -> Bool { pinnedIDs.contains(resource.id) }
+
+    /// Load the active cluster's saved pins, dropping any that this cluster no
+    /// longer serves, then persist the pruned set.
+    private func loadPinned() {
+        guard let clusterKey else { return }
+        let discoveredIDs = Set(discovered.map(\.id))
+        let stored = layoutStore.layout(for: clusterKey).pinned
+        let pruned = stored.filter(discoveredIDs.contains)
+        pinnedIDs = pruned
+        if pruned != stored { persistPinned() }
+        rebuildPinned()
+    }
+
+    func togglePin(_ resource: APIResource) {
+        if let index = pinnedIDs.firstIndex(of: resource.id) {
+            pinnedIDs.remove(at: index)
+        } else {
+            pinnedIDs.append(resource.id)
+        }
+        persistPinned()
+        rebuildPinned()
+    }
+
+    /// Reorder a pinned resource to sit before `targetID` (nil = move to end).
+    func movePinned(_ draggedID: String, before targetID: String?) {
+        let reordered = SidebarLayout.reorder(pinnedIDs, moving: draggedID, before: targetID)
+        guard reordered != pinnedIDs else { return }
+        pinnedIDs = reordered
+        persistPinned()
+        rebuildPinned()
+    }
+
+    private func rebuildPinned() {
+        let byID = Dictionary(discovered.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        pinnedResources = pinnedIDs.compactMap { byID[$0] }
+    }
+
+    private func persistPinned() {
+        guard let clusterKey else { return }
+        layoutStore.save(SidebarLayout(pinned: pinnedIDs), for: clusterKey)
     }
 
     // MARK: - Schema descriptions

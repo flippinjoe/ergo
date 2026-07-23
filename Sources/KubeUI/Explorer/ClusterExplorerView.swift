@@ -31,6 +31,10 @@ public struct ClusterExplorerView: View {
                 counts: model.counts,
                 expanded: model.expandedGroups,
                 onToggleSection: { model.toggleSection($0) },
+                pinned: model.pinnedResources,
+                pinnedIDs: model.pinnedIDSet,
+                onTogglePin: { model.togglePin($0) },
+                onMovePinned: { model.movePinned($0, before: $1) },
                 clusters: clusters,
                 onAddCluster: { showingAdd = true },
                 onManage: { showingManage = true }

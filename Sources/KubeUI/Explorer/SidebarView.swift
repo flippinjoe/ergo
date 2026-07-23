@@ -10,6 +10,10 @@ struct SidebarView: View {
     let counts: [String: Int]
     let expanded: Set<String>
     let onToggleSection: (String) -> Void
+    let pinned: [APIResource]
+    let pinnedIDs: Set<String>
+    let onTogglePin: (APIResource) -> Void
+    let onMovePinned: (String, String?) -> Void
     let clusters: ClustersModel
     let onAddCluster: () -> Void
     let onManage: () -> Void
@@ -33,6 +37,7 @@ struct SidebarView: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Nocturne.Space.s1) {
+                    pinnedSection
                     ForEach(sections) { section in
                         sectionHeader(section)
                         if expanded.contains(section.id) {
@@ -40,7 +45,9 @@ struct SidebarView: View {
                                 SidebarRow(
                                     resource: resource,
                                     isSelected: selection == resource,
-                                    count: counts[resource.id]
+                                    count: counts[resource.id],
+                                    isPinned: pinnedIDs.contains(resource.id),
+                                    onTogglePin: { onTogglePin(resource) }
                                 ) { selection = resource }
                             }
                         }
@@ -58,6 +65,55 @@ struct SidebarView: View {
                 .tint(Nocturne.statusOK)
         }
         .frame(minWidth: 220)
+    }
+
+    /// The pinned area at the top: the user's per-cluster favorites, reorderable
+    /// by drag. Hidden when nothing is pinned.
+    @ViewBuilder private var pinnedSection: some View {
+        if !pinned.isEmpty {
+            HStack(spacing: Nocturne.Space.s2) {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Nocturne.accent.opacity(0.8))
+                Text("Pinned")
+                    .font(Nocturne.Font.caption)
+                    .foregroundStyle(Nocturne.muted(0.5))
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Nocturne.Space.s3)
+            .padding(.top, Nocturne.Space.s2)
+            .padding(.bottom, Nocturne.Space.s1)
+
+            ForEach(pinned) { resource in
+                SidebarRow(
+                    resource: resource,
+                    isSelected: selection == resource,
+                    count: counts[resource.id],
+                    isPinned: true,
+                    onTogglePin: { onTogglePin(resource) }
+                ) { selection = resource }
+                .draggable(resource.id)
+                .dropDestination(for: String.self) { items, _ in
+                    guard let dragged = items.first else { return false }
+                    onMovePinned(dragged, resource.id)
+                    return true
+                }
+            }
+            // A thin trailing target so an item can be dropped past the last row.
+            Color.clear
+                .frame(height: 8)
+                .contentShape(Rectangle())
+                .dropDestination(for: String.self) { items, _ in
+                    guard let dragged = items.first else { return false }
+                    onMovePinned(dragged, nil)
+                    return true
+                }
+
+            Divider()
+                .background(Color.white.opacity(0.06))
+                .padding(.horizontal, Nocturne.Space.s3)
+                .padding(.vertical, Nocturne.Space.s1)
+        }
     }
 
     private func sectionHeader(_ section: SidebarSection) -> some View {
@@ -159,6 +215,8 @@ struct SidebarRow: View {
     let resource: APIResource
     let isSelected: Bool
     let count: Int?
+    var isPinned: Bool = false
+    var onTogglePin: (() -> Void)? = nil
     let action: () -> Void
 
     @State private var isHovering = false
@@ -188,6 +246,13 @@ struct SidebarRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
+        .contextMenu {
+            if let onTogglePin {
+                Button(isPinned ? "Unpin" : "Pin to Top", systemImage: isPinned ? "pin.slash" : "pin") {
+                    onTogglePin()
+                }
+            }
+        }
     }
 
     @ViewBuilder private var background: some View {
