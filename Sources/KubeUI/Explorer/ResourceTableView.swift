@@ -12,7 +12,7 @@ struct ResourceTableView: View {
     let loadError: String?
     let isLoading: Bool
 
-    @State private var selection: ResourceRow.ID?
+    @Binding var selection: ResourceRow.ID?
     @State private var sortOrder: [KeyPathComparator<ResourceRow>] = []
 
     private var sortedRows: [ResourceRow] {

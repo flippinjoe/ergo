@@ -32,9 +32,16 @@ public struct ClusterExplorerView: View {
             )
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 300)
         } detail: {
-            detail
-                .background(WallBackground())
-                .toolbar { toolbar }
+            HStack(spacing: 0) {
+                detail
+                if let inspector = model.inspector {
+                    InspectorView(data: inspector) { model.clearSelection() }
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut(duration: 0.18), value: model.inspector?.id)
+            .background(WallBackground())
+            .toolbar { toolbar }
         }
         .navigationTitle(model.selection.title)
         .task { await clusters.load() }
@@ -62,7 +69,7 @@ public struct ClusterExplorerView: View {
                 pods: model.pods,
                 loadError: model.loadError,
                 isLoading: model.isLoading,
-                selection: $model.selectedPodID,
+                selection: $model.selectedID,
                 followedPod: model.followedPod,
                 logLines: model.logLines
             )
@@ -72,7 +79,8 @@ public struct ClusterExplorerView: View {
                 rows: model.rows,
                 detailTitle: model.selection.detailColumnTitle,
                 loadError: model.loadError,
-                isLoading: model.isLoading
+                isLoading: model.isLoading,
+                selection: $model.selectedID
             )
         }
     }

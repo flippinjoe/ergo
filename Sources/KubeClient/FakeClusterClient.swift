@@ -73,6 +73,45 @@ public struct FakeClusterClient: ClusterClient {
         }
     }
 
+    public func watch(
+        _ gvr: GroupVersionResource, namespace: String?
+    )
+        -> AsyncThrowingStream<[ResourceObject], Error>
+    {
+        // The demo cluster is static: yield one snapshot from the fixtures.
+        let fixture: String?
+        switch gvr.resource {
+        case "pods": fixture = "pods"
+        case "deployments": fixture = "deployments"
+        case "statefulsets": fixture = "statefulsets"
+        default: fixture = nil  // custom resources have no demo fixtures
+        }
+        let objects = (fixture.flatMap { try? rawObjects(fixture: $0, namespace: namespace) }) ?? []
+        return AsyncThrowingStream { continuation in
+            continuation.yield(objects)
+            continuation.finish()
+        }
+    }
+
+    /// Reads a fixture's `items` as raw `ResourceObject`s (no typed decode).
+    private func rawObjects(fixture: String, namespace: String?) throws -> [ResourceObject] {
+        guard
+            let url = Bundle.module.url(forResource: fixture, withExtension: "json", subdirectory: "Fixtures")
+                ?? Bundle.module.url(forResource: fixture, withExtension: "json")
+        else { throw ClusterClientError.fixtureNotFound("\(fixture).json") }
+        let root = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        let items = root?["items"] as? [[String: Any]] ?? []
+        return items.compactMap { item in
+            let meta = item["metadata"] as? [String: Any] ?? [:]
+            if let namespace, (meta["namespace"] as? String) != namespace { return nil }
+            let id =
+                (meta["uid"] as? String)
+                ?? "\(meta["namespace"] as? String ?? "")/\(meta["name"] as? String ?? "")"
+            guard let data = try? JSONSerialization.data(withJSONObject: item) else { return nil }
+            return ResourceObject(id: id, data: data)
+        }
+    }
+
     // MARK: - Fixture loading
 
     /// A Kubernetes list response: `{ "items": [...] }`.

@@ -40,8 +40,14 @@ public enum ResourceKind: String, CaseIterable, Identifiable, Hashable, Sendable
 
     /// For custom-resource kinds, the GroupVersionResource to list. `nil` for
     /// built-in kinds that have a typed client method.
-    var customResource: GroupVersionResource? {
+    var gvr: GroupVersionResource {
         switch self {
+        case .pods:
+            GroupVersionResource(group: "", version: "v1", resource: "pods", namespaced: true)
+        case .deployments:
+            GroupVersionResource(group: "apps", version: "v1", resource: "deployments", namespaced: true)
+        case .statefulSets:
+            GroupVersionResource(group: "apps", version: "v1", resource: "statefulsets", namespaced: true)
         case .certificates:
             GroupVersionResource(
                 group: "cert-manager.io", version: "v1", resource: "certificates", namespaced: true)
@@ -51,8 +57,14 @@ public enum ResourceKind: String, CaseIterable, Identifiable, Hashable, Sendable
         case .scaledObjects:
             GroupVersionResource(
                 group: "keda.sh", version: "v1alpha1", resource: "scaledobjects", namespaced: true)
-        case .pods, .deployments, .statefulSets:
-            nil
+        }
+    }
+
+    /// Whether this kind is a custom resource (decoded dynamically).
+    var isCustomResource: Bool {
+        switch self {
+        case .certificates, .applications, .scaledObjects: true
+        case .pods, .deployments, .statefulSets: false
         }
     }
 

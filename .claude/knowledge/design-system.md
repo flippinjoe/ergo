@@ -54,13 +54,18 @@ readability** (Apple HIG, and the mockups' stated rule).
   three-state header cycle (ascending → descending → off) on top of the native
   two-state toggle. Columns sort on non-optional keys (e.g. Age sorts by the
   underlying `Date`, not the "3d" string).
-- **Live updates**: `ExplorerModel` polls the current view every
-  `pollInterval` (5s) via `load(showSpinner: false)` — silent, keeps selection,
-  and keeps last-known data on a transient error. The poll restarts on
-  cluster/kind/namespace change and stops on `onDisappear`. This is a seam for a
-  future Kubernetes **watch** stream (HTTP/2 streaming GET `?watch=1`), which
-  would replace polling behind the same `load`/rows update path. The toolbar
-  "Live" pill signals it.
+- **Live updates (watch)**: `ExplorerModel` **watches** the selected kind via
+  `ClusterClient.watch(_:namespace:)` — the Kubernetes list+watch protocol
+  (`LiveKubernetesClient.runWatch`: LIST for the initial snapshot +
+  resourceVersion, then a streaming `?watch=1` GET yielding ADDED/MODIFIED/
+  DELETED/BOOKMARK events, reconnecting on close and re-listing on 410). Each
+  snapshot is decoded (typed for pods/deployments/statefulsets, dynamic for
+  CRDs) and sorted stably. The watch restarts on cluster/kind/namespace change
+  and stops on `onDisappear`. The toolbar "Live" pill signals it.
+- **Inspector**: selecting a row opens a glass `InspectorView` (right of the
+  content) with the object's metadata (namespace, age, UID, labels), **owner
+  references**, and recent **events** (pillar 1). Built from the raw watch
+  object's `metadata` (works for any kind) plus a filtered `listEvents`.
 - **Toolbar**: namespace filter is leading (near the content it scopes); the
   Live indicator, search, and Ask are trailing. Cluster identity lives in the
   sidebar switcher, not the toolbar.

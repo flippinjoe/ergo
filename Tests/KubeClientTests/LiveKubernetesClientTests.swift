@@ -50,6 +50,63 @@ private final class CapturingStreamingClient: StreamingHTTPClient, @unchecked Se
     }
 }
 
+/// Serves a LIST body for `send` and a canned watch-event stream for
+/// `streamLines`, to exercise the watch loop offline.
+private final class WatchHTTPClient: StreamingHTTPClient, @unchecked Sendable {
+    let listBody: String
+    let eventLines: [String]
+    init(listBody: String, eventLines: [String]) {
+        self.listBody = listBody
+        self.eventLines = eventLines
+    }
+    func send(_ request: HTTPRequest) async throws -> HTTPResponse {
+        HTTPResponse(status: 200, body: Data(listBody.utf8))
+    }
+    func streamLines(_ request: HTTPRequest) -> AsyncThrowingStream<String, Error> {
+        let lines = eventLines
+        return AsyncThrowingStream { continuation in
+            for line in lines { continuation.yield(line) }
+            // Keep the stream open so the watch loop doesn't immediately relist;
+            // the consumer breaks and cancels us.
+            continuation.onTermination = { _ in }
+        }
+    }
+}
+
+@Suite("Watch")
+struct WatchTests {
+    private func object(_ name: String, uid: String) -> String {
+        """
+        {"metadata":{"name":"\(name)","namespace":"default","uid":"\(uid)","resourceVersion":"1"}}
+        """
+    }
+
+    @Test("List seeds the set; ADDED/DELETED events update it")
+    func listAndWatch() async throws {
+        let listBody = """
+            {"metadata":{"resourceVersion":"10"},"items":[\(object("pod-a", uid: "a"))]}
+            """
+        let events = [
+            "{\"type\":\"ADDED\",\"object\":\(object("pod-b", uid: "b"))}",
+            "{\"type\":\"DELETED\",\"object\":\(object("pod-a", uid: "a"))}",
+        ]
+        let http = WatchHTTPClient(listBody: listBody, eventLines: events)
+        let live = LiveKubernetesClient(
+            baseURL: URL(string: "https://api.example.com:443")!,
+            http: http, tokenProvider: StaticTokenProvider("t"))
+        let gvr = GroupVersionResource(group: "", version: "v1", resource: "pods", namespaced: true)
+
+        var snapshots: [Set<String>] = []
+        for try await snapshot in live.watch(gvr, namespace: nil) {
+            snapshots.append(Set(snapshot.map(\.id)))
+            if snapshots.count == 3 { break }  // list + 2 events
+        }
+        #expect(snapshots[0] == ["a"])
+        #expect(snapshots[1] == ["a", "b"])
+        #expect(snapshots[2] == ["b"])
+    }
+}
+
 @Suite("Live Kubernetes client (fakes)")
 struct LiveKubernetesClientTests {
     private let podListJSON = """

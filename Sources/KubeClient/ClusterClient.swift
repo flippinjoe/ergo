@@ -27,6 +27,12 @@ public protocol ClusterClient: Sendable {
         namespace: String, pod: String, container: String?
     )
         -> AsyncThrowingStream<String, Error>
+    /// Watches a resource type: yields the full current set of objects (raw
+    /// JSON) on every change, via the Kubernetes list+watch protocol. Read-only.
+    func watch(
+        _ gvr: GroupVersionResource, namespace: String?
+    )
+        -> AsyncThrowingStream<[ResourceObject], Error>
 }
 
 /// Pillar 2 (schema & AI): fetches the OpenAPI schema for a resource type so

@@ -81,6 +81,22 @@ struct FixtureDecodingTests {
         #expect(Set(namespaces).count == namespaces.count)
     }
 
+    @Test("Watch yields a snapshot of raw objects from the fixtures")
+    func watchSnapshot() async throws {
+        let gvr = GroupVersionResource(group: "", version: "v1", resource: "pods", namespaced: true)
+        var snapshot: [ResourceObject] = []
+        for try await objects in client.watch(gvr, namespace: nil) {
+            snapshot = objects
+            break
+        }
+        #expect(snapshot.count == 8)
+        // Each object is decodable back into a Pod.
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let pod = try #require(snapshot.first.map { try decoder.decode(Pod.self, from: $0.data) })
+        #expect(!pod.metadata.name.isEmpty)
+    }
+
     @Test("Events decode with involvedObject and ISO-8601 timestamps")
     func decodeEvents() async throws {
         let events = try await client.listEvents(namespace: nil)
