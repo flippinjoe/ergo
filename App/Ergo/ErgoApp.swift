@@ -10,22 +10,33 @@ import SwiftUI
 struct ErgoApp: App {
     var body: some Scene {
         WindowGroup {
-            ClusterExplorerView(
-                client: FakeClusterClient(),
-                // Saved clusters persist on-device. Azure discovery is live:
-                // interactive Microsoft sign-in via the system browser + loopback,
-                // tokens cached in the Keychain. (The per-cluster pod client is
-                // still the demo FakeClusterClient until the live client lands.)
-                clusterStore: FileClusterStore(),
-                azureService: LiveAzureClusterService(
-                    webAuthenticator: SystemWebAuthenticator(),
-                    tokenStore: KeychainTokenStore()
-                )
-            )
-            .frame(minWidth: 900, minHeight: 560)
-            .preferredColorScheme(.dark)
+            explorer
+                .frame(minWidth: 900, minHeight: 560)
+                .preferredColorScheme(.dark)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
+    }
+
+    /// Composition root. Live Azure sign-in + discovery; the client factory
+    /// builds a live `LiveKubernetesClient` per selected cluster (demo data for
+    /// the sample connection). Everything on-device: kubeconfig stays local,
+    /// tokens in the Keychain.
+    private var explorer: some View {
+        let tokenStore = KeychainTokenStore()
+        let azure = LiveAzureClusterService(
+            webAuthenticator: SystemWebAuthenticator(),
+            tokenStore: tokenStore
+        )
+        let factory = DefaultClusterClientFactory(
+            azure: azure,
+            tokenStore: tokenStore,
+            demoClient: FakeClusterClient()
+        )
+        return ClusterExplorerView(
+            clientProvider: factory,
+            clusterStore: FileClusterStore(),
+            azureService: azure
+        )
     }
 }

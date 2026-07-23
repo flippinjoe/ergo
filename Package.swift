@@ -25,6 +25,10 @@ let package = Package(
         .library(name: "KubeClient", targets: ["KubeClient"]),
         .library(name: "KubeUI", targets: ["KubeUI"]),
     ],
+    dependencies: [
+        // YAML parsing for kubeconfig files.
+        .package(url: "https://github.com/jpsim/Yams.git", exact: "5.4.0")
+    ],
     targets: [
         // Pillar seams 1 & 2: pure value types, no I/O, no platform deps.
         .target(
@@ -35,7 +39,7 @@ let package = Package(
         // resource so both tests and SwiftUI previews stay hermetic.
         .target(
             name: "KubeClient",
-            dependencies: ["KubeCore"],
+            dependencies: ["KubeCore", .product(name: "Yams", package: "Yams")],
             resources: [.process("Fixtures")],
             swiftSettings: .strict
         ),

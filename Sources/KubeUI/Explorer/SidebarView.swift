@@ -7,19 +7,18 @@ import SwiftUI
 struct SidebarView: View {
     @Binding var selection: ResourceKind
     let podCount: Int
+    let deploymentCount: Int?
     let clusters: ClustersModel
     let onAddCluster: () -> Void
     let onManage: () -> Void
 
-    // Illustrative counts / statuses for kinds not yet wired to live data.
+    // Only kinds wired to live data show a count; the rest stay blank rather
+    // than showing invented numbers.
     private func trailing(for kind: ResourceKind) -> SidebarRow.Trailing {
         switch kind {
         case .pods: .count(podCount)
-        case .deployments: .count(17)
-        case .statefulSets: .count(4)
-        case .certificates: .status(.warning)
-        case .applications: .count(22)
-        case .scaledObjects: .none
+        case .deployments: deploymentCount.map(SidebarRow.Trailing.count) ?? .none
+        default: .none
         }
     }
 

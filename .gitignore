@@ -7,10 +7,8 @@
 Tools/.build/
 .swiftpm/
 
-# The app package has no external deps, so its resolved file is noise.
-# Tools/Package.resolved IS tracked (below) to pin XcodeGen's dependency
-# graph for reproducible tool builds.
-/Package.resolved
+# Package.resolved IS tracked (root + Tools) to pin the dependency graph for
+# reproducible builds.
 
 # Xcode user state / DerivedData
 DerivedData/

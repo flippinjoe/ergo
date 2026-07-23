@@ -12,6 +12,9 @@ public protocol AzureClusterService: Sendable {
     func signIn() async throws -> AzureAccount
     func listSubscriptions() async throws -> [AzureSubscription]
     func listClusters(inSubscription subscriptionID: String) async throws -> [AzureManagedCluster]
+    /// Fetches the cluster's kubeconfig (user credentials). Returns the raw
+    /// kubeconfig YAML bytes.
+    func fetchKubeconfig(for cluster: AzureClusterRef) async throws -> Data
 }
 
 /// Errors across the Azure boundary.
@@ -47,6 +50,30 @@ public struct FakeAzureClusterService: AzureClusterService {
     public func listClusters(inSubscription subscriptionID: String) async throws -> [AzureManagedCluster] {
         try load("azure-clusters", as: ItemList<AzureManagedCluster>.self).items
             .filter { $0.subscriptionID == subscriptionID }
+    }
+
+    public func fetchKubeconfig(for cluster: AzureClusterRef) async throws -> Data {
+        // A minimal embedded-token kubeconfig so the mock path can build a
+        // (non-functional) client without a real cluster.
+        Data(
+            """
+            apiVersion: v1
+            kind: Config
+            current-context: \(cluster.clusterName)
+            clusters:
+            - name: \(cluster.clusterName)
+              cluster:
+                server: https://\(cluster.clusterName).example.invalid:443
+            contexts:
+            - name: \(cluster.clusterName)
+              context:
+                cluster: \(cluster.clusterName)
+                user: \(cluster.clusterName)
+            users:
+            - name: \(cluster.clusterName)
+              user:
+                token: fake-token
+            """.utf8)
     }
 
     private struct ItemList<Element: Decodable & Sendable>: Decodable, Sendable {

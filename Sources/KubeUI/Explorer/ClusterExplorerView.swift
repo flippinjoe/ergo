@@ -13,11 +13,11 @@ public struct ClusterExplorerView: View {
     @State private var showingManage = false
 
     public init(
-        client: any ClusterClient,
+        clientProvider: any ClusterClientProviding = StaticClusterClientProvider(FakeClusterClient()),
         clusterStore: any ClusterStore = InMemoryClusterStore(),
         azureService: any AzureClusterService = FakeAzureClusterService()
     ) {
-        _model = State(initialValue: ExplorerModel(client: client))
+        _model = State(initialValue: ExplorerModel(clientProvider: clientProvider))
         _clusters = State(initialValue: ClustersModel(store: clusterStore, azure: azureService))
     }
 
@@ -26,6 +26,7 @@ public struct ClusterExplorerView: View {
             SidebarView(
                 selection: $model.selection,
                 podCount: model.pods.count,
+                deploymentCount: model.deploymentCount,
                 clusters: clusters,
                 onAddCluster: { showingAdd = true },
                 onManage: { showingManage = true }
@@ -37,10 +38,9 @@ public struct ClusterExplorerView: View {
                 .toolbar { toolbar }
         }
         .navigationTitle(model.selection.title)
-        .task {
-            await clusters.load()
-            await model.loadPods()
-        }
+        .task { await clusters.load() }
+        // Rebuild + reload whenever the selected cluster changes.
+        .task(id: clusters.selectedID) { await model.activate(clusters.selected) }
         .tint(Nocturne.accent)
         .sheet(isPresented: $showingAdd) {
             AddClusterSheet(azure: clusters.azure) { connections in
@@ -58,7 +58,12 @@ public struct ClusterExplorerView: View {
     @ViewBuilder private var detail: some View {
         switch model.selection {
         case .pods:
-            PodsContentPane(pods: model.pods, loadError: model.loadError)
+            PodsContentPane(
+                pods: model.pods,
+                loadError: model.loadError,
+                isLoading: model.isLoading,
+                isLive: model.activeSourceKind != nil && model.activeSourceKind != .mock
+            )
         default:
             ComingSoonPane(kind: model.selection)
         }
@@ -99,13 +104,22 @@ public struct ClusterExplorerView: View {
 private struct PodsContentPane: View {
     let pods: [Pod]
     let loadError: String?
+    let isLoading: Bool
+    let isLive: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            PodsTableView(pods: pods, loadError: loadError)
+            PodsTableView(pods: pods, loadError: loadError, isLoading: isLoading)
                 .frame(maxHeight: .infinity)
-            LogDockView(followed: "argocd-repo-server-5f7b-jc9wd", lines: Self.sampleLog)
-                .padding([.horizontal, .bottom], Nocturne.Space.s3)
+            // Sample logs only for the demo cluster; live clusters show an
+            // honest "coming soon" rather than fabricated log lines.
+            if isLive {
+                LogDockView(followed: nil, lines: [])
+                    .padding([.horizontal, .bottom], Nocturne.Space.s3)
+            } else {
+                LogDockView(followed: "argocd-repo-server-5f7b-jc9wd", lines: Self.sampleLog)
+                    .padding([.horizontal, .bottom], Nocturne.Space.s3)
+            }
         }
     }
 
@@ -138,7 +152,7 @@ private struct ComingSoonPane: View {
 
 #if DEBUG
 #Preview {
-    ClusterExplorerView(client: FakeClusterClient())
+    ClusterExplorerView(clientProvider: StaticClusterClientProvider(FakeClusterClient()))
         .frame(width: 1040, height: 680)
         .preferredColorScheme(.dark)
 }

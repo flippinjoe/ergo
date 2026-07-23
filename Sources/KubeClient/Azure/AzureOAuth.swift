@@ -20,6 +20,10 @@ public struct AzureOAuthConfig: Sendable {
     /// ARM resource base.
     public static let armBaseURL = URL(string: "https://management.azure.com")!
 
+    /// The AKS AAD server application. A token for `<this>/.default` is what an
+    /// Entra-integrated cluster's API server accepts (what `kubelogin` fetches).
+    public static let aksServerAppID = "6dae42f8-4368-4678-94ff-3960e28e3630"
+
     public static let `default` = AzureOAuthConfig(
         // `organizations` = work/school (Azure) accounts; excludes personal MSAs
         // which can't hold Azure subscriptions.
@@ -92,12 +96,16 @@ struct AzureTokenClient: Sendable {
         ])
     }
 
-    func refresh(refreshToken: String) async throws -> TokenResponse {
+    /// Refreshes tokens. `scopes` defaults to the config's (ARM); pass a
+    /// different resource's scope to redeem the refresh token for it — AAD v2
+    /// refresh tokens aren't resource-bound, which is how we get a
+    /// cluster-scoped token for AKS.
+    func refresh(refreshToken: String, scopes: [String]? = nil) async throws -> TokenResponse {
         try await post([
             "client_id": config.clientID,
             "grant_type": "refresh_token",
             "refresh_token": refreshToken,
-            "scope": config.scopes.joined(separator: " "),
+            "scope": (scopes ?? config.scopes).joined(separator: " "),
         ])
     }
 

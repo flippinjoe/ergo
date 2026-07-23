@@ -79,6 +79,10 @@ public struct LiveAzureClusterService: AzureClusterService {
         )
     }
 
+    public func fetchKubeconfig(for cluster: AzureClusterRef) async throws -> Data {
+        try await arm.userKubeconfig(accessToken: validAccessToken(), cluster: cluster)
+    }
+
     // MARK: Token lifecycle
 
     private func loadToken() async throws -> StoredToken {

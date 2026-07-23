@@ -6,6 +6,7 @@ import SwiftUI
 struct PodsTableView: View {
     let pods: [Pod]
     let loadError: String?
+    var isLoading: Bool = false
     /// Injected so ages are stable in previews/tests; defaults to the wall clock.
     var now: Date = Date()
 
@@ -20,6 +21,16 @@ struct PodsTableView: View {
                     description: Text(loadError)
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if isLoading && pods.isEmpty {
+                VStack(spacing: Nocturne.Space.s3) {
+                    ProgressView()
+                    Text("Connecting to cluster…").font(Nocturne.Font.small).foregroundStyle(
+                        Nocturne.muted(0.6))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if pods.isEmpty {
+                ContentUnavailableView("No pods", systemImage: "shippingbox")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 table
             }

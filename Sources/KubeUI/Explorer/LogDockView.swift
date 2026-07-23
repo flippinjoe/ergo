@@ -13,7 +13,9 @@ struct LogDockView: View {
         enum Level { case info, warn, error }
     }
 
-    let followed: String
+    /// The followed pod, or `nil` for a live cluster where streaming isn't built
+    /// yet (shows an honest placeholder instead of fabricated lines).
+    let followed: String?
     let lines: [Line]
 
     var body: some View {
@@ -21,6 +23,11 @@ struct LogDockView: View {
             // Solid log surface (content).
             VStack(alignment: .leading, spacing: 2) {
                 Spacer().frame(height: 34)
+                if followed == nil {
+                    Text("Live log streaming is coming soon.")
+                        .font(Nocturne.Font.small)
+                        .foregroundStyle(Nocturne.muted(0.4))
+                }
                 ForEach(lines) { line in
                     logLine(line)
                 }
@@ -34,9 +41,12 @@ struct LogDockView: View {
 
             // Glass header bar floating on the log.
             HStack(spacing: Nocturne.Space.s2) {
-                StatusDot(health: .error, size: 6)
-                Text(followed).font(Nocturne.Font.small).foregroundStyle(Nocturne.statusError)
-                Text("· following").font(Nocturne.Font.small).foregroundStyle(Nocturne.muted(0.42))
+                StatusDot(health: followed == nil ? .unknown : .error, size: 6)
+                Text(followed ?? "Logs").font(Nocturne.Font.small)
+                    .foregroundStyle(followed == nil ? Nocturne.muted(0.6) : Nocturne.statusError)
+                if followed != nil {
+                    Text("· following").font(Nocturne.Font.small).foregroundStyle(Nocturne.muted(0.42))
+                }
                 Spacer()
                 Button {
                 } label: {

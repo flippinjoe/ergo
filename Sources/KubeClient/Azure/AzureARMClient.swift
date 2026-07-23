@@ -47,6 +47,36 @@ struct AzureARMClient: Sendable {
         }
     }
 
+    /// Fetches the cluster's kubeconfig via `listClusterUserCredentials`
+    /// (user credentials — respects RBAC; never admin). Returns the raw
+    /// kubeconfig bytes (base64-decoded from the ARM response).
+    func userKubeconfig(accessToken: String, cluster: KubeCore.AzureClusterRef) async throws -> Data {
+        // resourceID already begins with "/subscriptions/…"; concatenate rather
+        // than appendingPathComponent, which would escape its slashes.
+        guard
+            let url = URL(
+                string: baseURL.absoluteString + cluster.resourceID
+                    + "/listClusterUserCredentials?api-version=" + Self.aksAPIVersion)
+        else {
+            throw AzureError.invalidCallback("bad cluster resource ID")
+        }
+        let request = HTTPRequest(
+            method: .post,
+            url: url,
+            headers: ["Authorization": "Bearer \(accessToken)", "Accept": "application/json"],
+            body: Data("{}".utf8)
+        )
+        let response = try await http.send(request)
+        guard response.isSuccess else {
+            throw AzureError.httpError(status: response.status, body: response.bodyText)
+        }
+        let result = try JSONDecoder().decode(ARMCredentialResults.self, from: response.body)
+        guard let value = result.kubeconfigs.first?.value, let data = Data(base64Encoded: value) else {
+            throw AzureError.invalidCallback("no kubeconfig in listClusterUserCredentials response")
+        }
+        return data
+    }
+
     private func get<T: Decodable>(_ url: URL, accessToken: String) async throws -> T {
         let request = HTTPRequest(
             method: .get,
@@ -84,6 +114,14 @@ private struct ARMSubscription: Decodable, Sendable {
     let subscriptionId: String
     let displayName: String
     let tenantId: String
+}
+
+private struct ARMCredentialResults: Decodable, Sendable {
+    let kubeconfigs: [Entry]
+    struct Entry: Decodable, Sendable {
+        let name: String?
+        let value: String
+    }
 }
 
 private struct ARMManagedCluster: Decodable, Sendable {

@@ -59,9 +59,16 @@ tokenStore: KeychainTokenStore())`). The per-cluster pod client is still the dem
    the Keychain, auto-refreshed.
 2. **[done]** ARM `GET /subscriptions?api-version=2022-12-01`.
 3. **[done]** ARM `GET …/managedClusters?api-version=2024-05-01`.
-4. **[next]** On add, `POST …/managedClusters/{name}/listClusterUserCredentials`
-   for the kubeconfig — **user credentials only, never admin** — stored in the
-   Keychain, then a live `ClusterClient` built from it.
+4. **[done]** On select, `POST …/managedClusters/{name}/listClusterUserCredentials`
+   for the kubeconfig — **user credentials only, never admin**. It's parsed
+   (`Kubeconfig`, Yams); a `LiveKubernetesClient` is built with CA-pinned TLS
+   (`KubernetesHTTPClient`) and a `ClusterTokenProvider` — for Entra/`kubelogin`
+   configs an `AzureExecTokenProvider` mints an AKS-scoped token from the refresh
+   token; embedded-token configs use it directly. `DefaultClusterClientFactory`
+   wires this per selected connection.
+
+**Not yet:** client-certificate kubeconfigs (clear error), live log streaming
+(honest placeholder), and caching the kubeconfig (re-fetched per selection).
 
 ## Guardrail
 
