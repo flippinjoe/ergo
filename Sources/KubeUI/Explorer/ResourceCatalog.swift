@@ -150,8 +150,24 @@ enum ResourceCatalog {
             guard let items = byCategory[category], !items.isEmpty else { return nil }
             return SidebarSection(
                 id: category, title: category,
-                resources: items.sorted { $0.displayName < $1.displayName })
+                resources: dedupeAliases(items).sorted { $0.displayName < $1.displayName })
         }
+    }
+
+    /// Collapses the same object served under two API groups (e.g. core
+    /// `events` and `events.k8s.io/events`) to a single curated row, preferring
+    /// the newer, non-core group. Faithful "API Groups" mode keeps both.
+    static func dedupeAliases(_ items: [APIResource]) -> [APIResource] {
+        var byIdentity: [String: APIResource] = [:]
+        for item in items {
+            let key = "\(item.kind)|\(item.resource)"
+            if let existing = byIdentity[key] {
+                if existing.group.isEmpty, !item.group.isEmpty { byIdentity[key] = item }
+            } else {
+                byIdentity[key] = item
+            }
+        }
+        return Array(byIdentity.values)
     }
 
     /// Whether a resource shows a "Ready" (ready/desired) detail column.

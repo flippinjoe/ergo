@@ -12,6 +12,8 @@ struct InspectorData: Identifiable {
     let health: HealthStatus
     let manifest: String
     var events: [EventRecord]
+    /// Kind-specific sections (e.g. a Pod's containers) shown above metadata.
+    var detailSections: [DetailSection] = []
 }
 
 /// A glass inspector panel (right of the content, per the design) with the
@@ -27,6 +29,7 @@ struct InspectorView: View {
             Divider().overlay(Nocturne.divider)
             ScrollView {
                 VStack(alignment: .leading, spacing: Nocturne.Space.s6) {
+                    ForEach(data.detailSections) { detailSection($0) }
                     metadataSection
                     if let annotations = data.meta.annotations, !annotations.isEmpty {
                         annotationsSection(annotations)
@@ -61,6 +64,26 @@ struct InspectorView: View {
                 .foregroundStyle(Nocturne.muted(0.6))
         }
         .padding(Nocturne.Space.s4)
+    }
+
+    /// A kind-specific section: labeled key/value rows plus optional text lines.
+    private func detailSection(_ detail: DetailSection) -> some View {
+        section(detail.title) {
+            ForEach(detail.rows) { row in
+                field(row.label, row.value)
+            }
+            if !detail.items.isEmpty {
+                VStack(alignment: .leading, spacing: Nocturne.Space.s2) {
+                    ForEach(detail.items, id: \.self) { item in
+                        Text(item)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(Nocturne.muted(0.75))
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
     }
 
     private var metadataSection: some View {

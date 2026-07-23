@@ -66,6 +66,28 @@ struct ResourceCatalogTests {
                 == "Custom Resources")
     }
 
+    @Test("Curated collapses core + events.k8s.io Events into one row")
+    func curatedDedupesEvents() {
+        let resources = [
+            r("", "events", "Event"),
+            r("events.k8s.io", "events", "Event"),
+            r("", "nodes", "Node"),
+        ]
+        let cluster = ResourceCatalog.sections(from: resources, grouping: .curated)
+            .first { $0.title == "Cluster" }
+        let events = cluster?.resources.filter { $0.kind == "Event" } ?? []
+        #expect(events.count == 1)
+        // Prefers the newer, non-core API group.
+        #expect(events.first?.group == "events.k8s.io")
+    }
+
+    @Test("API Groups keeps both Events (faithful to the cluster)")
+    func byGroupKeepsBothEvents() {
+        let resources = [r("", "events", "Event"), r("events.k8s.io", "events", "Event")]
+        let all = ResourceCatalog.sections(from: resources, grouping: .byGroup).flatMap(\.resources)
+        #expect(all.filter { $0.kind == "Event" }.count == 2)
+    }
+
     @Test("Curated sections appear in the fixed category order")
     func curatedOrder() {
         let resources = [
