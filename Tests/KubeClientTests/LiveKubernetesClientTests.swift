@@ -92,6 +92,69 @@ struct LiveKubernetesClientTests {
         }
     }
 
+    @Test("StatefulSets decode from the apps/v1 endpoint")
+    func statefulSets() async throws {
+        let json = """
+            {"items":[{"metadata":{"name":"db"},"spec":{"replicas":3},"status":{"readyReplicas":3}}]}
+            """
+        let http = RecordingHTTPClient(["/apis/apps/v1/statefulsets": (200, json)])
+        let sets = try await client(http).listStatefulSets(namespace: nil)
+        #expect(sets.first?.readyText == "3/3")
+        #expect(sets.first?.health == .ok)
+    }
+
+    @Test("Namespaces decode to sorted names")
+    func namespaces() async throws {
+        let json = """
+            {"items":[{"metadata":{"name":"prod"}},{"metadata":{"name":"default"}}]}
+            """
+        let http = RecordingHTTPClient(["/api/v1/namespaces": (200, json)])
+        let namespaces = try await client(http).listNamespaces()
+        #expect(namespaces == ["default", "prod"])
+    }
+
+    @Test("Dynamic list decodes CRs and derives status from conditions")
+    func dynamicConditions() async throws {
+        let json = """
+            {"items":[
+              {"metadata":{"name":"api-tls","namespace":"prod","creationTimestamp":"2026-07-01T00:00:00Z"},
+               "status":{"conditions":[{"type":"Ready","status":"True"}]}},
+              {"metadata":{"name":"web-tls","namespace":"prod"},
+               "status":{"conditions":[{"type":"Ready","status":"False","reason":"DoesNotExist"}]}}
+            ]}
+            """
+        let gvr = GroupVersionResource(
+            group: "cert-manager.io", version: "v1", resource: "certificates", namespaced: true)
+        let http = RecordingHTTPClient(["/apis/cert-manager.io/v1/namespaces/prod/certificates": (200, json)])
+        let crs = try await client(http).listDynamic(gvr, namespace: "prod")
+
+        #expect(crs.count == 2)
+        let ready = try #require(crs.first { $0.name == "api-tls" })
+        #expect(ready.health == .ok)
+        #expect(ready.statusText == "Ready")
+        #expect(ready.creationTimestamp != nil)
+
+        let notReady = try #require(crs.first { $0.name == "web-tls" })
+        #expect(notReady.health == .error)
+        #expect(notReady.statusText == "DoesNotExist")
+    }
+
+    @Test("Dynamic status falls back to Argo-style health, then phase")
+    func dynamicHealthAndPhase() {
+        let argo = LiveKubernetesClient.dynamicResource(from: [
+            "metadata": ["name": "app1"],
+            "status": ["health": ["status": "Healthy"], "sync": ["status": "Synced"]],
+        ])
+        #expect(argo.statusText == "Healthy")
+        #expect(argo.health == .ok)
+
+        let phased = LiveKubernetesClient.dynamicResource(from: [
+            "metadata": ["name": "job1"], "status": ["phase": "Failed"],
+        ])
+        #expect(phased.statusText == "Failed")
+        #expect(phased.health == .error)
+    }
+
     @Test("PEM bundles split into certificates")
     func caParsing() {
         // Two (garbage-but-well-formed) blocks → parser attempts two certs.

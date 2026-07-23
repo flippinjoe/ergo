@@ -25,8 +25,7 @@ public struct ClusterExplorerView: View {
         NavigationSplitView {
             SidebarView(
                 selection: $model.selection,
-                podCount: model.pods.count,
-                deploymentCount: model.deploymentCount,
+                counts: model.counts,
                 clusters: clusters,
                 onAddCluster: { showingAdd = true },
                 onManage: { showingManage = true }
@@ -65,7 +64,13 @@ public struct ClusterExplorerView: View {
                 isLive: model.activeSourceKind != nil && model.activeSourceKind != .mock
             )
         default:
-            ComingSoonPane(kind: model.selection)
+            ResourceTableView(
+                title: model.selection.title,
+                rows: model.rows,
+                detailTitle: model.selection.detailColumnTitle,
+                loadError: model.loadError,
+                isLoading: model.isLoading
+            )
         }
     }
 
@@ -76,13 +81,24 @@ public struct ClusterExplorerView: View {
                 .tint(Nocturne.accent200)
         }
         ToolbarItemGroup(placement: .principal) {
-            Button {
+            Menu {
+                Button {
+                    model.selectedNamespace = nil
+                } label: {
+                    namespaceLabel("All namespaces", selected: model.selectedNamespace == nil)
+                }
+                if !model.namespaces.isEmpty {
+                    Divider()
+                    ForEach(model.namespaces, id: \.self) { namespace in
+                        Button {
+                            model.selectedNamespace = namespace
+                        } label: {
+                            namespaceLabel(namespace, selected: model.selectedNamespace == namespace)
+                        }
+                    }
+                }
             } label: {
-                Label("Status", systemImage: "line.3.horizontal.decrease")
-            }
-            Button {
-            } label: {
-                Label("Age", systemImage: "arrow.up.arrow.down")
+                Label(model.selectedNamespace ?? "All namespaces", systemImage: "square.stack.3d.up")
             }
         }
         ToolbarItemGroup(placement: .primaryAction) {
@@ -96,6 +112,14 @@ public struct ClusterExplorerView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(Nocturne.accent)
+        }
+    }
+
+    @ViewBuilder private func namespaceLabel(_ title: String, selected: Bool) -> some View {
+        if selected {
+            Label(title, systemImage: "checkmark")
+        } else {
+            Text(title)
         }
     }
 }

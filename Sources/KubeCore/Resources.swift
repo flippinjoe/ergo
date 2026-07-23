@@ -79,17 +79,61 @@ public struct ContainerState: Hashable, Sendable, Codable {
 public struct Deployment: Hashable, Sendable, Codable, Identifiable {
     public var metadata: ObjectMeta
     public var spec: Spec?
+    public var status: Status?
 
     public struct Spec: Hashable, Sendable, Codable {
         public var replicas: Int?
         public init(replicas: Int? = nil) { self.replicas = replicas }
     }
 
+    public struct Status: Hashable, Sendable, Codable {
+        public var readyReplicas: Int?
+        public init(readyReplicas: Int? = nil) { self.readyReplicas = readyReplicas }
+    }
+
     public var id: String { metadata.uid ?? "\(metadata.namespace ?? "")/\(metadata.name)" }
 
-    public init(metadata: ObjectMeta, spec: Spec? = nil) {
+    /// "ready/desired", e.g. "3/3".
+    public var readyText: String { "\(status?.readyReplicas ?? 0)/\(spec?.replicas ?? 0)" }
+    /// Healthy when all desired replicas are ready.
+    public var health: HealthStatus {
+        (status?.readyReplicas ?? 0) >= (spec?.replicas ?? 0) && (spec?.replicas ?? 0) > 0 ? .ok : .warning
+    }
+
+    public init(metadata: ObjectMeta, spec: Spec? = nil, status: Status? = nil) {
         self.metadata = metadata
         self.spec = spec
+        self.status = status
+    }
+}
+
+/// A StatefulSet — modeled like Deployment (workload with a desired/ready
+/// replica count).
+public struct StatefulSet: Hashable, Sendable, Codable, Identifiable {
+    public var metadata: ObjectMeta
+    public var spec: Spec?
+    public var status: Status?
+
+    public struct Spec: Hashable, Sendable, Codable {
+        public var replicas: Int?
+        public init(replicas: Int? = nil) { self.replicas = replicas }
+    }
+
+    public struct Status: Hashable, Sendable, Codable {
+        public var readyReplicas: Int?
+        public init(readyReplicas: Int? = nil) { self.readyReplicas = readyReplicas }
+    }
+
+    public var id: String { metadata.uid ?? "\(metadata.namespace ?? "")/\(metadata.name)" }
+    public var readyText: String { "\(status?.readyReplicas ?? 0)/\(spec?.replicas ?? 0)" }
+    public var health: HealthStatus {
+        (status?.readyReplicas ?? 0) >= (spec?.replicas ?? 0) && (spec?.replicas ?? 0) > 0 ? .ok : .warning
+    }
+
+    public init(metadata: ObjectMeta, spec: Spec? = nil, status: Status? = nil) {
+        self.metadata = metadata
+        self.spec = spec
+        self.status = status
     }
 }
 

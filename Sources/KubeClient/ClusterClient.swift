@@ -13,8 +13,14 @@ import KubeCore
 public protocol ClusterClient: Sendable {
     func listPods(namespace: String?) async throws -> [Pod]
     func listDeployments(namespace: String?) async throws -> [Deployment]
+    func listStatefulSets(namespace: String?) async throws -> [StatefulSet]
     func listEvents(namespace: String?) async throws -> [EventRecord]
     func listCRDs() async throws -> [CRDSummary]
+    /// The namespaces on the cluster, for the namespace filter.
+    func listNamespaces() async throws -> [String]
+    /// Generic list of any resource type (the pillar-2 seam) — used for CRDs
+    /// with no compiled-in type.
+    func listDynamic(_ gvr: GroupVersionResource, namespace: String?) async throws -> [DynamicResource]
 }
 
 /// Pillar 2 (schema & AI): fetches the OpenAPI schema for a resource type so

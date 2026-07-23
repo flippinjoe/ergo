@@ -57,6 +57,30 @@ struct FixtureDecodingTests {
         #expect(repo.spec?.replicas == 2)
     }
 
+    @Test("StatefulSets decode with ready/desired and health")
+    func decodeStatefulSets() async throws {
+        let sets = try await client.listStatefulSets(namespace: nil)
+        #expect(sets.count == 2)
+
+        let redis = try #require(sets.first { $0.metadata.name == "redis-master" })
+        #expect(redis.readyText == "0/1")
+        #expect(redis.health == .warning)  // not all replicas ready
+
+        let prom = try #require(sets.first { $0.metadata.name == "prometheus-k8s" })
+        #expect(prom.readyText == "2/2")
+        #expect(prom.health == .ok)
+    }
+
+    @Test("Namespaces are derived from the fixtures")
+    func namespaces() async throws {
+        let namespaces = try await client.listNamespaces()
+        #expect(namespaces.contains("monitoring"))
+        #expect(namespaces.contains("cert-manager"))
+        // Sorted, deduped.
+        #expect(namespaces == namespaces.sorted())
+        #expect(Set(namespaces).count == namespaces.count)
+    }
+
     @Test("Events decode with involvedObject and ISO-8601 timestamps")
     func decodeEvents() async throws {
         let events = try await client.listEvents(namespace: nil)

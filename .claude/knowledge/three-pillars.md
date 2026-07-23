@@ -24,10 +24,15 @@ Read a CustomResourceDefinition's OpenAPI schema and generate a form; AI helps
 fill/validate it.
 
 **Where in code:**
-- `KubeCore/Resources.swift` → `CRDSummary` (thin descriptor).
-- `KubeClient/ClusterClient.swift` → `SchemaProviding` protocol seam
-  (`openAPISchema(for:)`), deliberately unimplemented.
-- **Future module:** `KubeSchema` (OpenAPI node → form model).
+- **Dynamic CRD listing is built** — `GroupVersionResource` + `DynamicResource`
+  (KubeCore), `ClusterClient.listDynamic(_:namespace:)` (live via
+  `/apis/{group}/{version}/{resource}`, with best-effort status derived from
+  conditions / `status.health` / `status.phase`). The Certificates/Applications/
+  ScaledObjects panes are generic dynamic lists (`ResourceKind.customResource`).
+- `KubeCore/Resources.swift` → `CRDSummary` (CRD *definitions*, via `listCRDs`).
+- `KubeClient/ClusterClient.swift` → `SchemaProviding` seam (`openAPISchema(for:)`),
+  still unimplemented — the *form generation* step.
+- **Next:** `KubeSchema` (OpenAPI node → dynamic form).
 
 ## 3. Auth & agents — managed-cloud auth + local MCP exposure
 

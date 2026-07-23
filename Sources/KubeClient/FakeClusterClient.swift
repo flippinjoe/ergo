@@ -31,8 +31,29 @@ public struct FakeClusterClient: ClusterClient {
             load("events", as: ItemList<EventRecord>.self).items, namespace: namespace, \.metadata.namespace)
     }
 
+    public func listStatefulSets(namespace: String?) async throws -> [StatefulSet] {
+        try filtered(
+            load("statefulsets", as: ItemList<StatefulSet>.self).items, namespace: namespace,
+            \.metadata.namespace)
+    }
+
     public func listCRDs() async throws -> [CRDSummary] {
         try load("crds", as: ItemList<CRDSummary>.self).items
+    }
+
+    public func listNamespaces() async throws -> [String] {
+        // Derive from the pod fixtures so the filter has real values.
+        let pods = try load("pods", as: ItemList<Pod>.self).items
+        return Set(pods.compactMap(\.metadata.namespace)).sorted()
+    }
+
+    public func listDynamic(
+        _ gvr: GroupVersionResource, namespace: String?
+    ) async throws
+        -> [DynamicResource]
+    {
+        // The demo cluster ships no custom-resource instances.
+        []
     }
 
     // MARK: - Fixture loading

@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "metadata": {
+        "name": "prometheus-k8s",
+        "namespace": "monitoring",
+        "uid": "88888888-0000-0000-0000-000000000001",
+        "creationTimestamp": "2026-07-16T09:40:00Z",
+        "labels": { "app": "prometheus" }
+      },
+      "spec": { "replicas": 2 },
+      "status": { "readyReplicas": 2 }
+    },
+    {
+      "metadata": {
+        "name": "redis-master",
+        "namespace": "redis",
+        "uid": "88888888-0000-0000-0000-000000000002",
+        "creationTimestamp": "2026-07-22T09:38:00Z",
+        "labels": { "app": "redis" }
+      },
+      "spec": { "replicas": 1 },
+      "status": { "readyReplicas": 0 }
+    }
+  ]
+}

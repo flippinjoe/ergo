@@ -32,6 +32,13 @@ public struct LiveKubernetesClient: ClusterClient {
         ).items
     }
 
+    public func listStatefulSets(namespace: String?) async throws -> [StatefulSet] {
+        try await list(
+            path(group: "apis/apps/v1", resource: "statefulsets", namespace: namespace),
+            as: ItemList<StatefulSet>.self
+        ).items
+    }
+
     public func listEvents(namespace: String?) async throws -> [EventRecord] {
         try await list(path(core: "events", namespace: namespace), as: ItemList<EventRecord>.self).items
     }
@@ -42,9 +49,25 @@ public struct LiveKubernetesClient: ClusterClient {
         return list.items.map(\.summary)
     }
 
+    public func listNamespaces() async throws -> [String] {
+        try await list("/api/v1/namespaces", as: ItemList<NameOnly>.self)
+            .items.map(\.metadata.name).sorted()
+    }
+
+    public func listDynamic(
+        _ gvr: GroupVersionResource, namespace: String?
+    ) async throws
+        -> [DynamicResource]
+    {
+        let data = try await get(gvr.listPath(namespace: namespace))
+        let root = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let items = root?["items"] as? [[String: Any]] ?? []
+        return items.map(Self.dynamicResource(from:))
+    }
+
     // MARK: - Request
 
-    private func list<T: Decodable>(_ path: String, as: T.Type) async throws -> T {
+    private func get(_ path: String) async throws -> Data {
         let token = try await tokenProvider.token()
         let request = HTTPRequest(
             method: .get,
@@ -56,7 +79,52 @@ public struct LiveKubernetesClient: ClusterClient {
             throw KubernetesError.api(
                 status: response.status, body: "GET \(request.url.absoluteString) — \(response.bodyText)")
         }
-        return try decoder.decode(T.self, from: response.body)
+        return response.body
+    }
+
+    private func list<T: Decodable>(_ path: String, as: T.Type) async throws -> T {
+        try decoder.decode(T.self, from: try await get(path))
+    }
+
+    /// Builds a `DynamicResource` from a raw resource object, deriving a
+    /// best-effort status from common shapes (conditions, `status.health`,
+    /// `status.phase`).
+    static func dynamicResource(from item: [String: Any]) -> DynamicResource {
+        let metadata = item["metadata"] as? [String: Any] ?? [:]
+        let name = metadata["name"] as? String ?? "?"
+        let namespace = metadata["namespace"] as? String
+        var created: Date?
+        if let ts = metadata["creationTimestamp"] as? String {
+            created = try? Date(ts, strategy: .iso8601)
+        }
+        let (statusText, health) = deriveStatus(item["status"] as? [String: Any])
+        return DynamicResource(
+            name: name, namespace: namespace, creationTimestamp: created,
+            statusText: statusText, health: health)
+    }
+
+    private static func deriveStatus(_ status: [String: Any]?) -> (String?, HealthStatus) {
+        guard let status else { return (nil, .unknown) }
+        if let conditions = status["conditions"] as? [[String: Any]] {
+            let ready =
+                conditions.first { ($0["type"] as? String) == "Ready" }
+                ?? conditions.first { ($0["type"] as? String) == "Available" }
+                ?? conditions.last
+            if let ready {
+                let type = ready["type"] as? String ?? "?"
+                let value = ready["status"] as? String ?? "?"
+                if value == "True" { return (type, .ok) }
+                return (ready["reason"] as? String ?? "Not \(type)", .error)
+            }
+        }
+        // Argo CD Application: status.health.status.
+        if let healthText = (status["health"] as? [String: Any])?["status"] as? String {
+            return (healthText, HealthStatus(kubernetesStatus: healthText))
+        }
+        if let phase = status["phase"] as? String {
+            return (phase, HealthStatus(kubernetesStatus: phase))
+        }
+        return (nil, .unknown)
     }
 
     private func path(core resource: String, namespace: String?) -> String {
@@ -76,6 +144,12 @@ public struct LiveKubernetesClient: ClusterClient {
 
 public enum KubernetesError: Error, Sendable, Equatable {
     case api(status: Int, body: String)
+}
+
+/// Decodes just `metadata.name` (for namespace listing).
+private struct NameOnly: Decodable, Sendable {
+    let metadata: Meta
+    struct Meta: Decodable, Sendable { let name: String }
 }
 
 /// Minimal decode of an apiextensions.k8s.io/v1 CRD → our `CRDSummary`.

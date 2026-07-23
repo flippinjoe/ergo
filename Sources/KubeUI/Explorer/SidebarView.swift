@@ -6,20 +6,15 @@ import SwiftUI
 /// data.
 struct SidebarView: View {
     @Binding var selection: ResourceKind
-    let podCount: Int
-    let deploymentCount: Int?
+    let counts: [ResourceKind: Int]
     let clusters: ClustersModel
     let onAddCluster: () -> Void
     let onManage: () -> Void
 
-    // Only kinds wired to live data show a count; the rest stay blank rather
-    // than showing invented numbers.
+    // Show a live count for kinds we've loaded; others stay blank until visited
+    // (rather than showing invented numbers).
     private func trailing(for kind: ResourceKind) -> SidebarRow.Trailing {
-        switch kind {
-        case .pods: .count(podCount)
-        case .deployments: deploymentCount.map(SidebarRow.Trailing.count) ?? .none
-        default: .none
-        }
+        counts[kind].map(SidebarRow.Trailing.count) ?? .none
     }
 
     var body: some View {

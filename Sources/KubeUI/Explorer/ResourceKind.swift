@@ -1,3 +1,5 @@
+import KubeClient
+import KubeCore
 import SwiftUI
 
 /// The selectable resource kinds in the explorer sidebar. Grouped into the two
@@ -33,6 +35,32 @@ public enum ResourceKind: String, CaseIterable, Identifiable, Hashable, Sendable
         case .certificates: "checkmark.seal"
         case .applications: "arrow.triangle.branch"
         case .scaledObjects: "gauge.with.dots.needle.67percent"
+        }
+    }
+
+    /// For custom-resource kinds, the GroupVersionResource to list. `nil` for
+    /// built-in kinds that have a typed client method.
+    var customResource: GroupVersionResource? {
+        switch self {
+        case .certificates:
+            GroupVersionResource(
+                group: "cert-manager.io", version: "v1", resource: "certificates", namespaced: true)
+        case .applications:
+            GroupVersionResource(
+                group: "argoproj.io", version: "v1alpha1", resource: "applications", namespaced: true)
+        case .scaledObjects:
+            GroupVersionResource(
+                group: "keda.sh", version: "v1alpha1", resource: "scaledobjects", namespaced: true)
+        case .pods, .deployments, .statefulSets:
+            nil
+        }
+    }
+
+    /// Title of the kind-specific detail column, if any.
+    var detailColumnTitle: String? {
+        switch self {
+        case .deployments, .statefulSets: "Ready"
+        default: nil
         }
     }
 
