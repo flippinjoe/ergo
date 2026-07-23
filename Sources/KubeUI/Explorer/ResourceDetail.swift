@@ -47,8 +47,83 @@ enum ResourceDetail {
         case "Node": return node(object)
         case "PersistentVolumeClaim": return pvc(object)
         case "Ingress": return ingress(object)
-        default: return []
+        default: return generic(object)
         }
+    }
+
+    // MARK: - Generic fallback
+
+    /// For any kind without a bespoke builder: surface the top-level scalar
+    /// fields of `spec` and `status`, plus any `status.conditions`. This is what
+    /// makes the detail view meaningful for *every* resource, CRDs included.
+    private static func generic(_ object: [String: Any]) -> [DetailSection] {
+        var sections: [DetailSection] = []
+        if let spec = object["spec"] as? [String: Any] {
+            let rows = scalarRows(spec)
+            if !rows.isEmpty { sections.append(DetailSection(id: "spec", title: "Spec", rows: rows)) }
+        }
+        if let status = object["status"] as? [String: Any] {
+            let rows = scalarRows(status)
+            if !rows.isEmpty {
+                sections.append(DetailSection(id: "status", title: "Status", rows: rows))
+            }
+            let conditions = conditionItems(status["conditions"])
+            if !conditions.isEmpty {
+                sections.append(DetailSection(id: "conditions", title: "Conditions", items: conditions))
+            }
+        }
+        return sections
+    }
+
+    /// Top-level scalar entries of a dictionary as labeled rows (nested objects
+    /// and arrays are skipped), capped so a large spec stays readable.
+    private static func scalarRows(_ dict: [String: Any], limit: Int = 16) -> [DetailRow] {
+        let rows =
+            dict
+            .compactMap { key, value -> DetailRow? in
+                guard let text = scalar(value) else { return nil }
+                return DetailRow(label: humanizeKey(key), value: text)
+            }
+            .sorted { $0.label < $1.label }
+        return Array(rows.prefix(limit))
+    }
+
+    private static func conditionItems(_ value: Any?) -> [String] {
+        guard let conditions = value as? [[String: Any]] else { return [] }
+        return conditions.compactMap { condition in
+            guard let type = condition["type"] as? String else { return nil }
+            let state = condition["status"] as? String ?? ""
+            if let reason = condition["reason"] as? String, !reason.isEmpty {
+                return "\(type): \(state) (\(reason))"
+            }
+            return "\(type): \(state)"
+        }
+    }
+
+    /// A JSON scalar as display text, distinguishing booleans from numbers
+    /// (both bridge to `NSNumber` through `JSONSerialization`).
+    private static func scalar(_ value: Any) -> String? {
+        if let string = value as? String { return string.isEmpty ? nil : string }
+        if let number = value as? NSNumber {
+            if CFGetTypeID(number) == CFBooleanGetTypeID() { return number.boolValue ? "true" : "false" }
+            let double = number.doubleValue
+            if double == double.rounded(), abs(double) < 1e15 { return String(number.intValue) }
+            return String(double)
+        }
+        return nil
+    }
+
+    /// "storageClassName" → "Storage Class Name"; keeps acronym runs ("clusterIP"
+    /// → "Cluster IP").
+    private static func humanizeKey(_ key: String) -> String {
+        let characters = Array(key)
+        var out = ""
+        for (index, character) in characters.enumerated() {
+            let previous = index > 0 ? characters[index - 1] : nil
+            if character.isUppercase, let previous, !previous.isUppercase { out += " " }
+            out.append(character)
+        }
+        return out.prefix(1).uppercased() + out.dropFirst()
     }
 
     // MARK: - Per-kind builders

@@ -34,6 +34,8 @@ public struct GroupVersionResource: Hashable, Sendable {
 public struct DynamicResource: Hashable, Sendable, Codable, Identifiable {
     public var name: String
     public var namespace: String?
+    /// The object's `metadata.uid`, when present.
+    public var uid: String?
     public var creationTimestamp: Date?
     public var statusText: String?
     public var health: HealthStatus
@@ -41,11 +43,15 @@ public struct DynamicResource: Hashable, Sendable, Codable, Identifiable {
     /// object exposes a recognizable one.
     public var detail: String?
 
-    public var id: String { "\(namespace ?? "")/\(name)" }
+    /// Stable identity — the `uid` when the object has one, else namespace/name.
+    /// Must match `ResourceObject`'s identity so the inspector can look an object
+    /// back up from a selected row.
+    public var id: String { uid ?? "\(namespace ?? "")/\(name)" }
 
     public init(
         name: String,
         namespace: String? = nil,
+        uid: String? = nil,
         creationTimestamp: Date? = nil,
         statusText: String? = nil,
         health: HealthStatus = .unknown,
@@ -53,6 +59,7 @@ public struct DynamicResource: Hashable, Sendable, Codable, Identifiable {
     ) {
         self.name = name
         self.namespace = namespace
+        self.uid = uid
         self.creationTimestamp = creationTimestamp
         self.statusText = statusText
         self.health = health

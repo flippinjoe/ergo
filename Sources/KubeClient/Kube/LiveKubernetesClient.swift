@@ -326,6 +326,7 @@ public struct LiveKubernetesClient: ClusterClient {
         let metadata = item["metadata"] as? [String: Any] ?? [:]
         let name = metadata["name"] as? String ?? "?"
         let namespace = metadata["namespace"] as? String
+        let uid = metadata["uid"] as? String
         var created: Date?
         if let ts = metadata["creationTimestamp"] as? String {
             created = try? Date(ts, strategy: .iso8601)
@@ -341,7 +342,7 @@ public struct LiveKubernetesClient: ClusterClient {
             health = (ready >= desired && desired > 0) ? .ok : .warning
         }
         return DynamicResource(
-            name: name, namespace: namespace, creationTimestamp: created,
+            name: name, namespace: namespace, uid: uid, creationTimestamp: created,
             statusText: statusText, health: health, detail: detail)
     }
 

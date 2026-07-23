@@ -62,8 +62,25 @@ struct ResourceDetailTests {
         #expect(data?.items == ["a", "b"])  // sorted
     }
 
-    @Test("Unknown kinds contribute no custom sections")
-    func unknown() {
+    @Test("Unknown kinds fall back to generic spec/status/conditions")
+    func genericFallback() {
+        let json = """
+            {"kind":"Certificate",
+             "spec":{"dnsNames":["a.com"],"secretName":"tls","renewBefore":"360h","isCA":false},
+             "status":{"conditions":[{"type":"Ready","status":"True","reason":"Issued"}]}}
+            """
+        let result = sections("Certificate", json)
+        let spec = section(result, "spec")
+        #expect(spec?.rows.contains { $0.label == "Secret Name" && $0.value == "tls" } == true)
+        #expect(spec?.rows.contains { $0.label == "Renew Before" } == true)
+        #expect(spec?.rows.contains { $0.label == "Is CA" && $0.value == "false" } == true)
+        // Array fields aren't scalars, so they're skipped.
+        #expect(spec?.rows.contains { $0.label == "Dns Names" } == false)
+        #expect(section(result, "conditions")?.items == ["Ready: True (Issued)"])
+    }
+
+    @Test("Kinds with no scalar spec/status contribute nothing")
+    func empty() {
         #expect(sections("Widget", #"{"kind":"Widget","spec":{}}"#).isEmpty)
     }
 }
