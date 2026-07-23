@@ -67,6 +67,12 @@ Tools/                   Vendored, pinned XcodeGen (no Homebrew needed).
 .claude/                 This harness (skills + knowledge).
 ```
 
+## Workflow
+
+- **Commit and push to `main` directly.** This repo does **not** use feature
+  branches — do not create one unless the user explicitly asks. Push work to
+  `main` as it lands.
+
 ## Guardrails
 
 - **Never touch a real cluster.** No kubeconfig access in this repo. Tests and
