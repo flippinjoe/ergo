@@ -230,6 +230,45 @@ public struct LiveKubernetesClient: ClusterClient {
         return dynamicResource(from: object)
     }
 
+    public func discoverAPIResources() async throws -> [APIResource] {
+        // Core group.
+        async let core = self.resources(atGroupVersion: "v1", path: "/api/v1")
+        // Named groups: each at its server-preferred version.
+        let groupList = try? decoder.decode(APIGroupList.self, from: try await get("/apis"))
+        let preferred = (groupList?.groups ?? []).compactMap {
+            $0.preferredVersion?.groupVersion ?? $0.versions.first?.groupVersion
+        }
+        var discovered = (try? await core) ?? []
+        await withTaskGroup(of: [APIResource].self) { group in
+            for groupVersion in preferred {
+                group.addTask {
+                    (try? await self.resources(
+                        atGroupVersion: groupVersion, path: "/apis/\(groupVersion)")) ?? []
+                }
+            }
+            for await resources in group { discovered.append(contentsOf: resources) }
+        }
+        return discovered
+    }
+
+    /// Fetches an APIResourceList and maps its listable, top-level resources.
+    private func resources(atGroupVersion groupVersion: String, path: String) async throws -> [APIResource] {
+        let list = try decoder.decode(APIResourceList.self, from: try await get(path))
+        let (group, version) = Self.splitGroupVersion(groupVersion)
+        return list.resources.compactMap { resource in
+            // Skip subresources (pods/log) and anything that can't be listed.
+            guard !resource.name.contains("/"), resource.verbs.contains("list") else { return nil }
+            return APIResource(
+                group: group, version: version, resource: resource.name, kind: resource.kind,
+                namespaced: resource.namespaced, shortNames: resource.shortNames ?? [])
+        }
+    }
+
+    private static func splitGroupVersion(_ groupVersion: String) -> (group: String, version: String) {
+        let parts = groupVersion.split(separator: "/", maxSplits: 1).map(String.init)
+        return parts.count == 2 ? (parts[0], parts[1]) : ("", groupVersion)
+    }
+
     // MARK: - Request
 
     private func get(_ path: String) async throws -> Data {
@@ -262,10 +301,30 @@ public struct LiveKubernetesClient: ClusterClient {
         if let ts = metadata["creationTimestamp"] as? String {
             created = try? Date(ts, strategy: .iso8601)
         }
-        let (statusText, health) = deriveStatus(item["status"] as? [String: Any])
+        let status = item["status"] as? [String: Any]
+        var (statusText, health) = deriveStatus(status)
+        let detail = deriveDetail(spec: item["spec"] as? [String: Any], status: status)
+        // Workloads: if there was no explicit condition/phase, infer health from
+        // the ready/desired counts.
+        if health == .unknown, let detail, let slash = detail.firstIndex(of: "/") {
+            let ready = Int(detail[..<slash]) ?? 0
+            let desired = Int(detail[detail.index(after: slash)...]) ?? 0
+            health = (ready >= desired && desired > 0) ? .ok : .warning
+        }
         return DynamicResource(
             name: name, namespace: namespace, creationTimestamp: created,
-            statusText: statusText, health: health)
+            statusText: statusText, health: health, detail: detail)
+    }
+
+    /// A "ready/desired" detail for workload-shaped objects.
+    private static func deriveDetail(spec: [String: Any]?, status: [String: Any]?) -> String? {
+        if let desired = spec?["replicas"] as? Int {
+            return "\(status?["readyReplicas"] as? Int ?? 0)/\(desired)"
+        }
+        if let desired = status?["desiredNumberScheduled"] as? Int {  // DaemonSet
+            return "\(status?["numberReady"] as? Int ?? 0)/\(desired)"
+        }
+        return nil
     }
 
     private static func deriveStatus(_ status: [String: Any]?) -> (String?, HealthStatus) {
@@ -315,6 +374,29 @@ public enum KubernetesError: Error, Sendable, Equatable {
 private struct NameOnly: Decodable, Sendable {
     let metadata: Meta
     struct Meta: Decodable, Sendable { let name: String }
+}
+
+// MARK: - Discovery DTOs
+
+private struct APIGroupList: Decodable, Sendable {
+    let groups: [Group]
+    struct Group: Decodable, Sendable {
+        let name: String
+        let versions: [GroupVersion]
+        let preferredVersion: GroupVersion?
+    }
+    struct GroupVersion: Decodable, Sendable { let groupVersion: String }
+}
+
+private struct APIResourceList: Decodable, Sendable {
+    let resources: [Resource]
+    struct Resource: Decodable, Sendable {
+        let name: String
+        let namespaced: Bool
+        let kind: String
+        let verbs: [String]
+        let shortNames: [String]?
+    }
 }
 
 /// Minimal decode of an apiextensions.k8s.io/v1 CRD → our `CRDSummary`.

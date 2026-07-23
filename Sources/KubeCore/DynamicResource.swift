@@ -37,6 +37,9 @@ public struct DynamicResource: Hashable, Sendable, Codable, Identifiable {
     public var creationTimestamp: Date?
     public var statusText: String?
     public var health: HealthStatus
+    /// A kind-specific secondary value (e.g. a workload's "3/3" ready), when the
+    /// object exposes a recognizable one.
+    public var detail: String?
 
     public var id: String { "\(namespace ?? "")/\(name)" }
 
@@ -45,12 +48,14 @@ public struct DynamicResource: Hashable, Sendable, Codable, Identifiable {
         namespace: String? = nil,
         creationTimestamp: Date? = nil,
         statusText: String? = nil,
-        health: HealthStatus = .unknown
+        health: HealthStatus = .unknown,
+        detail: String? = nil
     ) {
         self.name = name
         self.namespace = namespace
         self.creationTimestamp = creationTimestamp
         self.statusText = statusText
         self.health = health
+        self.detail = detail
     }
 }

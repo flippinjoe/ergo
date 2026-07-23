@@ -1,56 +1,55 @@
 import KubeCore
 import SwiftUI
 
-/// The glass navigation sidebar: a cluster switcher, the resource sections, and
-/// a privacy footer. Counts are illustrative except Pods, which reflects loaded
-/// data.
+/// The glass navigation sidebar: a cluster switcher, the discovered resource
+/// types grouped by API group, and a privacy footer.
 struct SidebarView: View {
-    @Binding var selection: ResourceKind
-    let counts: [ResourceKind: Int]
+    @Binding var selection: APIResource?
+    let sections: [SidebarSection]
+    let counts: [String: Int]
     let clusters: ClustersModel
     let onAddCluster: () -> Void
     let onManage: () -> Void
 
-    // Show a live count for kinds we've loaded; others stay blank until visited
-    // (rather than showing invented numbers).
-    private func trailing(for kind: ResourceKind) -> SidebarRow.Trailing {
-        counts[kind].map(SidebarRow.Trailing.count) ?? .none
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: Nocturne.Space.s1) {
+        VStack(alignment: .leading, spacing: 0) {
             ClusterSwitcher(clusters: clusters, onAddCluster: onAddCluster, onManage: onManage)
-                .padding(.bottom, Nocturne.Space.s2)
+                .padding(Nocturne.Space.s3)
+                .padding(.bottom, Nocturne.Space.s1)
 
-            ForEach(ResourceKind.Section.allCases) { section in
-                Text(section.rawValue.uppercased())
-                    .font(Nocturne.Font.caption)
-                    .kerning(1.1)
-                    .foregroundStyle(Nocturne.muted(0.42))
-                    .padding(.horizontal, Nocturne.Space.s3)
-                    .padding(.top, Nocturne.Space.s6)
-                    .padding(.bottom, Nocturne.Space.s2)
-
-                ForEach(section.kinds) { kind in
-                    SidebarRow(
-                        kind: kind,
-                        isSelected: selection == kind,
-                        trailing: trailing(for: kind)
-                    ) { selection = kind }
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: Nocturne.Space.s1, pinnedViews: [.sectionHeaders]) {
+                    ForEach(sections) { section in
+                        Section {
+                            ForEach(section.resources) { resource in
+                                SidebarRow(
+                                    resource: resource,
+                                    isSelected: selection == resource,
+                                    count: counts[resource.id]
+                                ) { selection = resource }
+                            }
+                        } header: {
+                            Text(section.title)
+                                .font(Nocturne.Font.caption)
+                                .foregroundStyle(Nocturne.muted(0.42))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, Nocturne.Space.s3)
+                                .padding(.top, Nocturne.Space.s4)
+                                .padding(.bottom, Nocturne.Space.s2)
+                                .background(.ultraThinMaterial)
+                        }
+                    }
                 }
+                .padding(.horizontal, Nocturne.Space.s3)
             }
-
-            Spacer(minLength: 0)
 
             Label("kubeconfig stays on this Mac", systemImage: "lock")
                 .font(Nocturne.Font.small)
                 .foregroundStyle(Nocturne.muted(0.55))
                 .labelStyle(.titleAndIcon)
-                .padding(.horizontal, Nocturne.Space.s3)
-                .padding(.vertical, Nocturne.Space.s3)
+                .padding(Nocturne.Space.s4)
                 .tint(Nocturne.statusOK)
         }
-        .padding(Nocturne.Space.s3)
         .frame(minWidth: 220)
     }
 }
@@ -120,18 +119,12 @@ private struct ClusterSwitcher: View {
     }
 }
 
-/// One sidebar row: icon + label + a trailing count or status dot, with the
+/// One sidebar row: icon + label + an optional live count, with the
 /// accent-tinted selected state from the design.
 struct SidebarRow: View {
-    enum Trailing {
-        case count(Int)
-        case status(HealthStatus)
-        case none
-    }
-
-    let kind: ResourceKind
+    let resource: APIResource
     let isSelected: Bool
-    let trailing: Trailing
+    let count: Int?
     let action: () -> Void
 
     @State private var isHovering = false
@@ -139,13 +132,19 @@ struct SidebarRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Nocturne.Space.s3) {
-                Image(systemName: kind.systemImage)
-                    .font(.system(size: 14))
+                Image(systemName: ResourceCatalog.icon(for: resource))
+                    .font(.system(size: 13))
                     .frame(width: 18)
-                Text(kind.title)
+                Text(resource.displayName)
                     .font(Nocturne.Font.body)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Spacer(minLength: Nocturne.Space.s2)
-                trailingView
+                if let count {
+                    Text("\(count)")
+                        .font(Nocturne.Font.small)
+                        .foregroundStyle(Nocturne.muted(isSelected ? 0.7 : 0.55))
+                }
             }
             .foregroundStyle(isSelected ? Nocturne.text : Nocturne.muted(0.74))
             .padding(.horizontal, Nocturne.Space.s3)
@@ -155,19 +154,6 @@ struct SidebarRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
-    }
-
-    @ViewBuilder private var trailingView: some View {
-        switch trailing {
-        case .count(let n):
-            Text("\(n)")
-                .font(Nocturne.Font.small)
-                .foregroundStyle(Nocturne.muted(isSelected ? 0.7 : 0.55))
-        case .status(let health):
-            StatusDot(health: health, size: 7)
-        case .none:
-            EmptyView()
-        }
     }
 
     @ViewBuilder private var background: some View {

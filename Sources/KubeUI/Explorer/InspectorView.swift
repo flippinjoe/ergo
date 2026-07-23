@@ -5,7 +5,8 @@ import SwiftUI
 /// object's metadata plus its related events (pillar 1: relationships & time).
 struct InspectorData: Identifiable {
     let id: String
-    let kind: ResourceKind
+    let kindTitle: String
+    let iconName: String
     let meta: ObjectMeta
     let statusText: String?
     let health: HealthStatus
@@ -42,10 +43,11 @@ struct InspectorView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: Nocturne.Space.s3) {
-            Image(systemName: data.kind.systemImage)
+            Image(systemName: data.iconName)
                 .foregroundStyle(Nocturne.accent200)
             VStack(alignment: .leading, spacing: 2) {
                 Text(data.meta.name).font(Nocturne.Font.bodyEmphasis).textSelection(.enabled)
+                Text(data.kindTitle).font(.system(size: 10)).foregroundStyle(Nocturne.muted(0.45))
                 StatusLabel(data.statusText ?? label(for: data.health), health: data.health)
             }
             Spacer()

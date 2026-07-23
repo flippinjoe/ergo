@@ -33,6 +33,9 @@ public protocol ClusterClient: Sendable {
         _ gvr: GroupVersionResource, namespace: String?
     )
         -> AsyncThrowingStream<[ResourceObject], Error>
+    /// Discovers every listable resource type the cluster serves (preferred
+    /// version per group) — the source of truth for the sidebar.
+    func discoverAPIResources() async throws -> [APIResource]
 }
 
 /// Pillar 2 (schema & AI): fetches the OpenAPI schema for a resource type so

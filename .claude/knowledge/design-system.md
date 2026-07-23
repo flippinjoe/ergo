@@ -47,6 +47,25 @@ readability** (Apple HIG, and the mockups' stated rule).
 | `.glassPanel()` / `.contentSurface()` / `WallBackground` | `Theme/Materials.swift` | The material layer. |
 | Data table | `Explorer/PodsTableView.swift` | Native `Table`; columns map to model fields. |
 
+## Resource catalog (API discovery)
+
+The sidebar is **not** hardcoded — it's built from the cluster's own API
+discovery, so it shows everything that cluster serves at the versions it serves
+(handles 1.26 vs 1.28 automatically):
+
+- `ClusterClient.discoverAPIResources()` → `[APIResource]` (KubeCore). Live does
+  classic discovery: `/api/v1` + `/apis` (groups) + each group's **preferred
+  version** `/apis/{group}/{version}`, in parallel, keeping listable non-
+  subresources.
+- `ResourceCatalog.sections(from:)` groups **strictly by API group** (Core
+  first, then well-known groups, then the rest alphabetical), the user's chosen
+  grouping. `APIResource.displayName` humanizes+pluralizes the kind
+  ("PersistentVolumeClaim" → "Persistent Volume Claims").
+- Every resource is watched/listed/inspected **generically** by its
+  `GroupVersionResource`. Pods keep the rich typed table; everything else renders
+  via `DynamicResource` (best-effort status + a workload ready/desired detail).
+  Adding coverage for a new kind needs no code — discovery finds it.
+
 ## Explorer behaviors
 
 - **Sortable tables**: both `PodsTableView` and the generic `ResourceTableView`

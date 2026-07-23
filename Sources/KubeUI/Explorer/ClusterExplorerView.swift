@@ -26,12 +26,13 @@ public struct ClusterExplorerView: View {
         NavigationSplitView {
             SidebarView(
                 selection: $model.selection,
+                sections: model.sections,
                 counts: model.counts,
                 clusters: clusters,
                 onAddCluster: { showingAdd = true },
                 onManage: { showingManage = true }
             )
-            .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 300)
+            .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
         } detail: {
             HStack(spacing: 0) {
                 detail
@@ -44,7 +45,7 @@ public struct ClusterExplorerView: View {
             .background(WallBackground())
             .toolbar { toolbar }
         }
-        .navigationTitle(model.selection.title)
+        .navigationTitle(model.selection?.displayName ?? "Ergo")
         .task { await clusters.load() }
         // Rebuild + reload whenever the selected cluster changes.
         .task(id: clusters.selectedID) { await model.activate(clusters.selected) }
@@ -64,25 +65,29 @@ public struct ClusterExplorerView: View {
     }
 
     @ViewBuilder private var detail: some View {
-        switch model.selection {
-        case .pods:
-            PodsContentPane(
-                pods: model.pods,
-                loadError: model.loadError,
-                isLoading: model.isLoading,
-                selection: $model.selectedID,
-                followedPod: model.followedPod,
-                logLines: model.logLines
-            )
-        default:
-            ResourceTableView(
-                title: model.selection.title,
-                rows: model.rows,
-                detailTitle: model.selection.detailColumnTitle,
-                loadError: model.loadError,
-                isLoading: model.isLoading,
-                selection: $model.selectedID
-            )
+        if let selection = model.selection {
+            if ResourceCatalog.isPods(selection) {
+                PodsContentPane(
+                    pods: model.pods,
+                    loadError: model.loadError,
+                    isLoading: model.isLoading,
+                    selection: $model.selectedID,
+                    followedPod: model.followedPod,
+                    logLines: model.logLines
+                )
+            } else {
+                ResourceTableView(
+                    title: selection.displayName,
+                    rows: model.rows,
+                    detailTitle: ResourceCatalog.hasReadyColumn(selection) ? "Ready" : nil,
+                    loadError: model.loadError,
+                    isLoading: model.isLoading,
+                    selection: $model.selectedID
+                )
+            }
+        } else {
+            ContentUnavailableView("Select a resource", systemImage: "square.grid.2x2")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

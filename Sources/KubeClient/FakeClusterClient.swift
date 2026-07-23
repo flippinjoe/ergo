@@ -112,6 +112,41 @@ public struct FakeClusterClient: ClusterClient {
         }
     }
 
+    public func discoverAPIResources() async throws -> [APIResource] {
+        func r(
+            _ group: String, _ version: String, _ resource: String, _ kind: String, _ namespaced: Bool
+        )
+            -> APIResource
+        {
+            APIResource(
+                group: group, version: version, resource: resource, kind: kind, namespaced: namespaced)
+        }
+        return [
+            r("", "v1", "pods", "Pod", true),
+            r("", "v1", "services", "Service", true),
+            r("", "v1", "configmaps", "ConfigMap", true),
+            r("", "v1", "secrets", "Secret", true),
+            r("", "v1", "persistentvolumeclaims", "PersistentVolumeClaim", true),
+            r("", "v1", "persistentvolumes", "PersistentVolume", false),
+            r("", "v1", "namespaces", "Namespace", false),
+            r("", "v1", "nodes", "Node", false),
+            r("", "v1", "serviceaccounts", "ServiceAccount", true),
+            r("apps", "v1", "deployments", "Deployment", true),
+            r("apps", "v1", "statefulsets", "StatefulSet", true),
+            r("apps", "v1", "daemonsets", "DaemonSet", true),
+            r("batch", "v1", "jobs", "Job", true),
+            r("batch", "v1", "cronjobs", "CronJob", true),
+            r("networking.k8s.io", "v1", "ingresses", "Ingress", true),
+            r("networking.k8s.io", "v1", "networkpolicies", "NetworkPolicy", true),
+            r("storage.k8s.io", "v1", "storageclasses", "StorageClass", false),
+            r("rbac.authorization.k8s.io", "v1", "roles", "Role", true),
+            r("rbac.authorization.k8s.io", "v1", "clusterroles", "ClusterRole", false),
+            r("cert-manager.io", "v1", "certificates", "Certificate", true),
+            r("argoproj.io", "v1alpha1", "applications", "Application", true),
+            r("keda.sh", "v1alpha1", "scaledobjects", "ScaledObject", true),
+        ]
+    }
+
     // MARK: - Fixture loading
 
     /// A Kubernetes list response: `{ "items": [...] }`.

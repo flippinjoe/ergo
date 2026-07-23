@@ -53,7 +53,7 @@ struct ResourceRow: Identifiable, Hashable, Sendable {
     init(dynamic: DynamicResource, now: Date) {
         self.init(
             id: dynamic.id, name: dynamic.name, namespace: dynamic.namespace,
-            statusText: dynamic.statusText, health: dynamic.health, detail: nil,
+            statusText: dynamic.statusText, health: dynamic.health, detail: dynamic.detail,
             age: dynamic.creationTimestamp.map { RelativeAge.string(from: $0, now: now) },
             created: dynamic.creationTimestamp)
     }
