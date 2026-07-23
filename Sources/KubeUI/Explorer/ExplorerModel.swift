@@ -16,10 +16,15 @@ final class ExplorerModel {
                 selectedID = nil
                 pods = []
                 rows = []
+                if let selection { expandedGroups.insert(Self.sectionID(for: selection)) }
                 restartWatch()
+                fetchDescription()
             }
         }
     }
+    /// Expanded sidebar sections (by group id). Collapsed by default; the
+    /// selected resource's section is auto-expanded so it stays visible.
+    private(set) var expandedGroups: Set<String> = []
     /// Namespaces to show; empty = all. Client-side filter over a cluster-wide
     /// watch, so toggling is instant.
     var selectedNamespaces: Set<String> = [] {
@@ -50,6 +55,9 @@ final class ExplorerModel {
     private(set) var logLines: [LogLine] = []
     private(set) var followedPod: String?
     private(set) var inspector: InspectorData?
+    /// The selected resource type's description from the OpenAPI schema.
+    private(set) var selectionDescription: String?
+    private var descriptionCache: [String: [String: String]] = [:]
 
     private let provider: any ClusterClientProviding
     private var client: (any ClusterClient)?
@@ -184,6 +192,42 @@ final class ExplorerModel {
         selection.isEmpty || (namespace.map(selection.contains) ?? false)
     }
 
+    // MARK: - Sidebar sections
+
+    static func sectionID(for resource: APIResource) -> String {
+        resource.group.isEmpty ? "core" : resource.group
+    }
+
+    func isExpanded(_ sectionID: String) -> Bool { expandedGroups.contains(sectionID) }
+
+    func toggleSection(_ sectionID: String) {
+        if expandedGroups.contains(sectionID) {
+            expandedGroups.remove(sectionID)
+        } else {
+            expandedGroups.insert(sectionID)
+        }
+    }
+
+    // MARK: - Schema descriptions
+
+    private func fetchDescription() {
+        selectionDescription = nil
+        guard let selection, let client else { return }
+        let key = "\(selection.group)/\(selection.version)"
+        if let cached = descriptionCache[key] {
+            selectionDescription = cached[selection.kind]
+            return
+        }
+        Task { [weak self] in
+            let map =
+                (try? await client.resourceDescriptions(
+                    group: selection.group, version: selection.version)) ?? [:]
+            guard let self, self.selection == selection else { return }
+            self.descriptionCache[key] = map
+            self.selectionDescription = map[selection.kind]
+        }
+    }
+
     // MARK: - Log streaming
 
     private func stopLogStream() {
@@ -233,7 +277,8 @@ final class ExplorerModel {
         let (statusText, health) = statusForSelected(id)
         inspector = InspectorData(
             id: id, kindTitle: selection.kind, iconName: ResourceCatalog.icon(for: selection),
-            meta: wrap.metadata, statusText: statusText, health: health, events: [])
+            meta: wrap.metadata, statusText: statusText, health: health,
+            manifest: Self.prettyJSON(data), events: [])
 
         let meta = wrap.metadata
         inspectorTask = Task { [weak self] in
@@ -263,6 +308,15 @@ final class ExplorerModel {
 
     private func message(for error: any Error) -> String {
         (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+    }
+
+    /// Pretty-printed JSON manifest for the detail view.
+    private static func prettyJSON(_ data: Data) -> String {
+        guard let object = try? JSONSerialization.jsonObject(with: data),
+            let pretty = try? JSONSerialization.data(
+                withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+        else { return String(decoding: data, as: UTF8.self) }
+        return String(decoding: pretty, as: UTF8.self)
     }
 }
 

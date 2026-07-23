@@ -36,6 +36,9 @@ public protocol ClusterClient: Sendable {
     /// Discovers every listable resource type the cluster serves (preferred
     /// version per group) — the source of truth for the sidebar.
     func discoverAPIResources() async throws -> [APIResource]
+    /// Kind → human description from the cluster's OpenAPI schema, for a single
+    /// group/version. Used to explain resource types in the UI.
+    func resourceDescriptions(group: String, version: String) async throws -> [String: String]
 }
 
 /// Pillar 2 (schema & AI): fetches the OpenAPI schema for a resource type so

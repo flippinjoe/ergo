@@ -5,6 +5,7 @@ import SwiftUI
 /// the columns from the design — Name, Namespace, Status, Restarts, Age, Node.
 struct PodsTableView: View {
     let pods: [Pod]
+    var description: String? = nil
     let loadError: String?
     var isLoading: Bool = false
     /// Injected so ages are stable in previews/tests; defaults to the wall clock.
@@ -39,14 +40,7 @@ struct PodsTableView: View {
     }
 
     private var header: some View {
-        HStack(spacing: Nocturne.Space.s3) {
-            Text("Pods").font(Nocturne.Font.heading)
-            Tag("all namespaces · \(pods.count)")
-            Spacer()
-        }
-        .padding(.horizontal, Nocturne.Space.s6)
-        .padding(.top, Nocturne.Space.s6)
-        .padding(.bottom, Nocturne.Space.s3)
+        ResourceHeader(title: "Pods", count: pods.count, description: description)
     }
 
     private var sortedPods: [Pod] {

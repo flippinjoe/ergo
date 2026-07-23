@@ -1,11 +1,40 @@
 import KubeCore
 import SwiftUI
 
+/// Shared list-pane header: title, live count, and the resource type's
+/// description from the cluster's OpenAPI schema.
+struct ResourceHeader: View {
+    let title: String
+    let count: Int
+    let description: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Nocturne.Space.s2) {
+            HStack(spacing: Nocturne.Space.s3) {
+                Text(title).font(Nocturne.Font.heading)
+                Tag("\(count)")
+                Spacer()
+            }
+            if let description, !description.isEmpty {
+                Text(description)
+                    .font(Nocturne.Font.small)
+                    .foregroundStyle(Nocturne.muted(0.55))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, Nocturne.Space.s6)
+        .padding(.top, Nocturne.Space.s6)
+        .padding(.bottom, Nocturne.Space.s3)
+    }
+}
+
 /// A generic content pane for any resource kind that isn't Pods: a solid table
 /// with Name, Namespace, Status, an optional kind-specific detail column, and
 /// Age. Driven entirely by `[ResourceRow]`.
 struct ResourceTableView: View {
     let title: String
+    var description: String? = nil
     let rows: [ResourceRow]
     /// Title of the kind-specific column (e.g. "Ready"); nil to omit it.
     let detailTitle: String?
@@ -44,14 +73,7 @@ struct ResourceTableView: View {
     }
 
     private var header: some View {
-        HStack(spacing: Nocturne.Space.s3) {
-            Text(title).font(Nocturne.Font.heading)
-            Tag("\(rows.count)")
-            Spacer()
-        }
-        .padding(.horizontal, Nocturne.Space.s6)
-        .padding(.top, Nocturne.Space.s6)
-        .padding(.bottom, Nocturne.Space.s3)
+        ResourceHeader(title: title, count: rows.count, description: description)
     }
 
     private var table: some View {

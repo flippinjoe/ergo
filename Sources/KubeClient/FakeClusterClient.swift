@@ -147,6 +147,16 @@ public struct FakeClusterClient: ClusterClient {
         ]
     }
 
+    public func resourceDescriptions(group: String, version: String) async throws -> [String: String] {
+        [
+            "Pod": "Pod is a collection of containers that can run on a host.",
+            "Deployment": "Deployment enables declarative updates for Pods and ReplicaSets.",
+            "Service": "Service is a named abstraction of software service.",
+            "ConfigMap": "ConfigMap holds configuration data for pods to consume.",
+            "Secret": "Secret holds secret data of a certain type.",
+        ]
+    }
+
     // MARK: - Fixture loading
 
     /// A Kubernetes list response: `{ "items": [...] }`.

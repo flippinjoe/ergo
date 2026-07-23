@@ -81,10 +81,19 @@ discovery, so it shows everything that cluster serves at the versions it serves
   snapshot is decoded (typed for pods/deployments/statefulsets, dynamic for
   CRDs) and sorted stably. The watch restarts on cluster/kind/namespace change
   and stops on `onDisappear`. The toolbar "Live" pill signals it.
-- **Inspector**: selecting a row opens a glass `InspectorView` (right of the
-  content) with the object's metadata (namespace, age, UID, labels), **owner
-  references**, and recent **events** (pillar 1). Built from the raw watch
-  object's `metadata` (works for any kind) plus a filtered `listEvents`.
+- **Inspector (generic detail)**: selecting a row opens a glass `InspectorView`
+  — the *same* detail for every kind. Metadata (namespace, age, UID, labels),
+  **annotations**, **owner references**, recent **events**, and a **Manifest**
+  disclosure (pretty-printed object). Built from the raw watch object's
+  metadata + full JSON, so it works for any resource.
+- **Collapsible sidebar**: each API-group section collapses; sections are
+  collapsed by default (`ExplorerModel.expandedGroups`), and the section holding
+  the current selection auto-expands. (Future: user-pinned/curated sections and
+  per-cluster reordering.)
+- **Schema descriptions**: list headers show the resource type's description
+  from the cluster's **OpenAPI v3** schema
+  (`ClusterClient.resourceDescriptions(group:version:)`, cached per
+  group-version, fetched lazily on selection).
 - **Toolbar**: the namespace filter is leading (near the content it scopes);
   the Live indicator, search, and Ask are trailing. Cluster identity lives in
   the sidebar switcher, not the toolbar.

@@ -7,6 +7,8 @@ struct SidebarView: View {
     @Binding var selection: APIResource?
     let sections: [SidebarSection]
     let counts: [String: Int]
+    let expanded: Set<String>
+    let onToggleSection: (String) -> Void
     let clusters: ClustersModel
     let onAddCluster: () -> Void
     let onManage: () -> Void
@@ -18,9 +20,10 @@ struct SidebarView: View {
                 .padding(.bottom, Nocturne.Space.s1)
 
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: Nocturne.Space.s1, pinnedViews: [.sectionHeaders]) {
+                LazyVStack(alignment: .leading, spacing: Nocturne.Space.s1) {
                     ForEach(sections) { section in
-                        Section {
+                        sectionHeader(section)
+                        if expanded.contains(section.id) {
                             ForEach(section.resources) { resource in
                                 SidebarRow(
                                     resource: resource,
@@ -28,19 +31,11 @@ struct SidebarView: View {
                                     count: counts[resource.id]
                                 ) { selection = resource }
                             }
-                        } header: {
-                            Text(section.title)
-                                .font(Nocturne.Font.caption)
-                                .foregroundStyle(Nocturne.muted(0.42))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, Nocturne.Space.s3)
-                                .padding(.top, Nocturne.Space.s4)
-                                .padding(.bottom, Nocturne.Space.s2)
-                                .background(.ultraThinMaterial)
                         }
                     }
                 }
                 .padding(.horizontal, Nocturne.Space.s3)
+                .padding(.bottom, Nocturne.Space.s3)
             }
 
             Label("kubeconfig stays on this Mac", systemImage: "lock")
@@ -51,6 +46,33 @@ struct SidebarView: View {
                 .tint(Nocturne.statusOK)
         }
         .frame(minWidth: 220)
+    }
+
+    private func sectionHeader(_ section: SidebarSection) -> some View {
+        let isOpen = expanded.contains(section.id)
+        return Button {
+            onToggleSection(section.id)
+        } label: {
+            HStack(spacing: Nocturne.Space.s2) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .rotationEffect(.degrees(isOpen ? 90 : 0))
+                    .foregroundStyle(Nocturne.muted(0.4))
+                Text(section.title)
+                    .font(Nocturne.Font.caption)
+                    .foregroundStyle(Nocturne.muted(0.5))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Text("\(section.resources.count)")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Nocturne.muted(0.3))
+            }
+            .padding(.horizontal, Nocturne.Space.s3)
+            .padding(.top, Nocturne.Space.s4)
+            .padding(.bottom, Nocturne.Space.s1)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

@@ -10,6 +10,7 @@ struct InspectorData: Identifiable {
     let meta: ObjectMeta
     let statusText: String?
     let health: HealthStatus
+    let manifest: String
     var events: [EventRecord]
 }
 
@@ -27,10 +28,14 @@ struct InspectorView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Nocturne.Space.s6) {
                     metadataSection
+                    if let annotations = data.meta.annotations, !annotations.isEmpty {
+                        annotationsSection(annotations)
+                    }
                     if let owners = data.meta.ownerReferences, !owners.isEmpty {
                         ownersSection(owners)
                     }
                     eventsSection
+                    manifestSection
                 }
                 .padding(Nocturne.Space.s4)
             }
@@ -74,6 +79,33 @@ struct InspectorView: View {
                 }
             }
         }
+    }
+
+    private func annotationsSection(_ annotations: [String: String]) -> some View {
+        section("Annotations") {
+            FlowChips(annotations.sorted(by: { $0.key < $1.key }).map { "\($0.key)=\($0.value)" })
+        }
+    }
+
+    private var manifestSection: some View {
+        DisclosureGroup {
+            ScrollView(.horizontal, showsIndicators: true) {
+                Text(data.manifest)
+                    .font(.system(size: 10.5, design: .monospaced))
+                    .foregroundStyle(Nocturne.muted(0.7))
+                    .textSelection(.enabled)
+                    .padding(Nocturne.Space.s2)
+            }
+            .frame(maxHeight: 260)
+            .background(
+                RoundedRectangle(cornerRadius: Nocturne.Radius.sm, style: .continuous)
+                    .fill(Color(hex: 0x090A10).opacity(0.5)))
+        } label: {
+            Text("MANIFEST")
+                .font(Nocturne.Font.caption).kerning(0.8)
+                .foregroundStyle(Nocturne.muted(0.42))
+        }
+        .tint(Nocturne.muted(0.5))
     }
 
     private func ownersSection(_ owners: [OwnerReference]) -> some View {

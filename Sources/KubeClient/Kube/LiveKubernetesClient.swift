@@ -264,6 +264,32 @@ public struct LiveKubernetesClient: ClusterClient {
         }
     }
 
+    public func resourceDescriptions(group: String, version: String) async throws -> [String: String] {
+        // OpenAPI v3 is split per group-version; find this one's document URL.
+        let index = try JSONSerialization.jsonObject(with: try await get("/openapi/v3")) as? [String: Any]
+        let paths = index?["paths"] as? [String: Any]
+        let key = group.isEmpty ? "api/\(version)" : "apis/\(group)/\(version)"
+        guard let entry = paths?[key] as? [String: Any],
+            let relativeURL = entry["serverRelativeURL"] as? String,
+            let url = URL(string: baseURL.absoluteString + relativeURL)
+        else { return [:] }
+
+        let doc = try JSONSerialization.jsonObject(with: try await getData(url)) as? [String: Any]
+        let schemas = (doc?["components"] as? [String: Any])?["schemas"] as? [String: Any] ?? [:]
+        var descriptions: [String: String] = [:]
+        for value in schemas.values {
+            guard let schema = value as? [String: Any],
+                let description = schema["description"] as? String,
+                let gvks = schema["x-kubernetes-group-version-kind"] as? [[String: Any]]
+            else { continue }
+            for gvk in gvks
+            where (gvk["group"] as? String ?? "") == group && (gvk["version"] as? String) == version {
+                if let kind = gvk["kind"] as? String { descriptions[kind] = description }
+            }
+        }
+        return descriptions
+    }
+
     private static func splitGroupVersion(_ groupVersion: String) -> (group: String, version: String) {
         let parts = groupVersion.split(separator: "/", maxSplits: 1).map(String.init)
         return parts.count == 2 ? (parts[0], parts[1]) : ("", groupVersion)
@@ -272,16 +298,19 @@ public struct LiveKubernetesClient: ClusterClient {
     // MARK: - Request
 
     private func get(_ path: String) async throws -> Data {
+        try await getData(baseURL.appendingPathComponent(path))
+    }
+
+    private func getData(_ url: URL) async throws -> Data {
         let token = try await tokenProvider.token()
         let request = HTTPRequest(
-            method: .get,
-            url: baseURL.appendingPathComponent(path),
+            method: .get, url: url,
             headers: ["Authorization": "Bearer \(token)", "Accept": "application/json"]
         )
         let response = try await http.send(request)
         guard response.isSuccess else {
             throw KubernetesError.api(
-                status: response.status, body: "GET \(request.url.absoluteString) — \(response.bodyText)")
+                status: response.status, body: "GET \(url.absoluteString) — \(response.bodyText)")
         }
         return response.body
     }

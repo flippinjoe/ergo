@@ -58,6 +58,7 @@ public struct ObjectMeta: Hashable, Sendable, Codable {
     public var uid: String?
     public var creationTimestamp: Date?
     public var labels: [String: String]?
+    public var annotations: [String: String]?
     public var ownerReferences: [OwnerReference]?
 
     public init(
@@ -66,6 +67,7 @@ public struct ObjectMeta: Hashable, Sendable, Codable {
         uid: String? = nil,
         creationTimestamp: Date? = nil,
         labels: [String: String]? = nil,
+        annotations: [String: String]? = nil,
         ownerReferences: [OwnerReference]? = nil
     ) {
         self.name = name
@@ -73,6 +75,7 @@ public struct ObjectMeta: Hashable, Sendable, Codable {
         self.uid = uid
         self.creationTimestamp = creationTimestamp
         self.labels = labels
+        self.annotations = annotations
         self.ownerReferences = ownerReferences
     }
 }

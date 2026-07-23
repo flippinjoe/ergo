@@ -28,6 +28,8 @@ public struct ClusterExplorerView: View {
                 selection: $model.selection,
                 sections: model.sections,
                 counts: model.counts,
+                expanded: model.expandedGroups,
+                onToggleSection: { model.toggleSection($0) },
                 clusters: clusters,
                 onAddCluster: { showingAdd = true },
                 onManage: { showingManage = true }
@@ -69,6 +71,7 @@ public struct ClusterExplorerView: View {
             if ResourceCatalog.isPods(selection) {
                 PodsContentPane(
                     pods: model.pods,
+                    description: model.selectionDescription,
                     loadError: model.loadError,
                     isLoading: model.isLoading,
                     selection: $model.selectedID,
@@ -78,6 +81,7 @@ public struct ClusterExplorerView: View {
             } else {
                 ResourceTableView(
                     title: selection.displayName,
+                    description: model.selectionDescription,
                     rows: model.rows,
                     detailTitle: ResourceCatalog.hasReadyColumn(selection) ? "Ready" : nil,
                     loadError: model.loadError,
@@ -154,6 +158,7 @@ private struct LiveIndicator: View {
 /// The Pods pane: the table edge-to-edge with the log dock pinned to the bottom.
 private struct PodsContentPane: View {
     let pods: [Pod]
+    let description: String?
     let loadError: String?
     let isLoading: Bool
     @Binding var selection: Pod.ID?
@@ -162,8 +167,11 @@ private struct PodsContentPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PodsTableView(pods: pods, loadError: loadError, isLoading: isLoading, selection: $selection)
-                .frame(maxHeight: .infinity)
+            PodsTableView(
+                pods: pods, description: description, loadError: loadError, isLoading: isLoading,
+                selection: $selection
+            )
+            .frame(maxHeight: .infinity)
             LogDockView(followed: followedPod, lines: logLines)
                 .padding([.horizontal, .bottom], Nocturne.Space.s3)
         }
