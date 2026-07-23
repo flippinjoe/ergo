@@ -22,10 +22,18 @@ selected `ClusterConnection` into a `ClusterClient`.
   the Mac).
 - `AzureClusterService` — the discovery boundary: `signIn()` →
   `listSubscriptions()` → `listClusters(inSubscription:)`.
-  - `FakeAzureClusterService` — fixture-backed, hermetic; the whole add-cluster
-    UX is built and tested against it.
-  - `LiveAzureClusterService` — **the agreed next step**, currently throwing
-    `.notImplemented`. Its doc comment spells out the real flow (see below).
+  - `FakeAzureClusterService` — fixture-backed, hermetic; used by previews and
+    the SwiftUI `#Preview` default.
+  - `LiveAzureClusterService` (**implemented**, `Azure/`) — real interactive
+    sign-in + ARM discovery. Every side effect is injected — `WebAuthenticator`
+    (browser), `HTTPClient` (network), `TokenStore` (Keychain) — so the whole
+    path is unit-tested with fakes (`AzureAuthTests`). Supporting pieces in
+    `KubeClient/Azure/`: `PKCE`, `AzureOAuth` (config + authorize-URL builder +
+    `AzureTokenClient`), `AzureARMClient`, `TokenStore` (+ `KeychainTokenStore`),
+    `WebAuthenticator`.
+  - `SystemWebAuthenticator` (App target) — the concrete browser step: opens the
+    system browser and catches the redirect on a loopback listener (needs the
+    `com.apple.security.network.server` entitlement).
 
 ## UI (KubeUI/Clusters)
 
@@ -37,21 +45,23 @@ selected `ClusterConnection` into a `ClusterClient`.
   `ClustersManagerView` (list/select/remove). Entered from the sidebar's cluster
   switcher menu (`SidebarView`).
 
-## The live Azure path (next step)
+## The live Azure path (implemented)
 
 Chosen approach: **built-in browser sign-in**, no app registration, nothing for
-the user to configure — same as `az`/`kubelogin`.
+the user to configure — same as `az`/`kubelogin`. Wired at the app root in
+`ErgoApp` (`LiveAzureClusterService(webAuthenticator: SystemWebAuthenticator(),
+tokenStore: KeychainTokenStore())`). The per-cluster pod client is still the demo
+`FakeClusterClient` — the live `ClusterClient` (and kubeconfig fetch via
+`listClusterUserCredentials`) is the next step.
 
-1. `ASWebAuthenticationSession`, authorization-code + PKCE, against Microsoft's
-   public client `04b07795-8ddb-461a-bbee-02f9e1bf7b46`. Cache tokens in the
-   Keychain.
-2. ARM `GET /subscriptions?api-version=2022-12-01`.
-3. ARM `GET …/providers/Microsoft.ContainerService/managedClusters?api-version=2024-05-01`.
-4. On add, `POST …/managedClusters/{name}/listClusterUserCredentials` for the
-   kubeconfig — **user credentials only, never admin**; store in the Keychain.
-
-Swapping is a one-line change at the app's composition root (`ErgoApp`):
-`azureService: LiveAzureClusterService()`.
+1. **[done]** System browser + loopback redirect, authorization-code + PKCE,
+   against public client `04b07795-8ddb-461a-bbee-02f9e1bf7b46`. Tokens cached in
+   the Keychain, auto-refreshed.
+2. **[done]** ARM `GET /subscriptions?api-version=2022-12-01`.
+3. **[done]** ARM `GET …/managedClusters?api-version=2024-05-01`.
+4. **[next]** On add, `POST …/managedClusters/{name}/listClusterUserCredentials`
+   for the kubeconfig — **user credentials only, never admin** — stored in the
+   Keychain, then a live `ClusterClient` built from it.
 
 ## Guardrail
 

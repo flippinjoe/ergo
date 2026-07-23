@@ -50,10 +50,4 @@ struct AzureServiceTests {
         #expect(ref.clusterName == "prod-eus")
     }
 
-    @Test("The live service is a wired seam that isn't implemented yet")
-    func liveNotImplemented() async {
-        await #expect(throws: AzureError.notImplemented) {
-            _ = try await LiveAzureClusterService().listSubscriptions()
-        }
-    }
 }

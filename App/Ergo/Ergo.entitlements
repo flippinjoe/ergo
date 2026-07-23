@@ -4,10 +4,12 @@
 <dict>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
-	<!-- The future product talks to cluster API servers over the network.
-	     Enabled now so the sandbox profile is stable; the skeleton makes no
-	     outbound calls. -->
+	<!-- Talks to cluster API servers and Azure (ARM + Microsoft sign-in). -->
 	<key>com.apple.security.network.client</key>
+	<true/>
+	<!-- Accepts the loopback redirect from the browser during Azure sign-in
+	     (SystemWebAuthenticator runs a local listener). -->
+	<key>com.apple.security.network.server</key>
 	<true/>
 </dict>
 </plist>

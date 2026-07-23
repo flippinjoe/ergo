@@ -1,5 +1,6 @@
 import Foundation
 import KubeCore
+import Security
 
 /// Pillar 3 (auth & agents): the boundary for discovering clusters from Azure.
 /// The UI drives this three-step flow — sign in, list subscriptions, list the
@@ -16,8 +17,12 @@ public protocol AzureClusterService: Sendable {
 /// Errors across the Azure boundary.
 public enum AzureError: Error, Sendable, Equatable {
     case notSignedIn
-    case notImplemented
     case fixtureNotFound(String)
+    case authenticationFailed(String)
+    case httpError(status: Int, body: String)
+    case invalidCallback(String)
+    case cancelled
+    case keychain(OSStatus)
 }
 
 /// Fixture-backed Azure service for previews and tests. Fully hermetic: no
@@ -56,30 +61,5 @@ public struct FakeAzureClusterService: AzureClusterService {
             throw AzureError.fixtureNotFound("\(name).json")
         }
         return try decoder.decode(T.self, from: Data(contentsOf: url))
-    }
-}
-
-/// The live Azure service — **not implemented yet** (agreed next step). Kept as
-/// a concrete seam so swapping the mock for real calls is a one-line change at
-/// the app's composition root.
-///
-/// The planned flow, all on-device, kubeconfig never leaving this Mac:
-///  1. Sign in with `ASWebAuthenticationSession` (authorization-code + PKCE)
-///     against Microsoft's well-known public client
-///     `04b07795-8ddb-461a-bbee-02f9e1bf7b46` (the same client `az`/`kubelogin`
-///     use — no app registration required); cache tokens in the Keychain.
-///  2. `GET https://management.azure.com/subscriptions?api-version=2022-12-01`
-///     for subscriptions.
-///  3. `GET …/subscriptions/{id}/providers/Microsoft.ContainerService/managedClusters?api-version=2024-05-01`
-///     for AKS clusters.
-///  4. On add, `POST …/managedClusters/{name}/listClusterUserCredentials` to
-///     fetch the kubeconfig (never admin credentials).
-public struct LiveAzureClusterService: AzureClusterService {
-    public init() {}
-
-    public func signIn() async throws -> AzureAccount { throw AzureError.notImplemented }
-    public func listSubscriptions() async throws -> [AzureSubscription] { throw AzureError.notImplemented }
-    public func listClusters(inSubscription subscriptionID: String) async throws -> [AzureManagedCluster] {
-        throw AzureError.notImplemented
     }
 }

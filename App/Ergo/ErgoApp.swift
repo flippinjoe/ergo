@@ -12,10 +12,15 @@ struct ErgoApp: App {
         WindowGroup {
             ClusterExplorerView(
                 client: FakeClusterClient(),
-                // Saved clusters persist on-device; Azure discovery is mocked
-                // until the live Entra/ARM calls land (LiveAzureClusterService).
+                // Saved clusters persist on-device. Azure discovery is live:
+                // interactive Microsoft sign-in via the system browser + loopback,
+                // tokens cached in the Keychain. (The per-cluster pod client is
+                // still the demo FakeClusterClient until the live client lands.)
                 clusterStore: FileClusterStore(),
-                azureService: FakeAzureClusterService()
+                azureService: LiveAzureClusterService(
+                    webAuthenticator: SystemWebAuthenticator(),
+                    tokenStore: KeychainTokenStore()
+                )
             )
             .frame(minWidth: 900, minHeight: 560)
             .preferredColorScheme(.dark)
