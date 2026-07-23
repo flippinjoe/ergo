@@ -7,6 +7,9 @@ import SwiftUI
 struct SidebarView: View {
     @Binding var selection: ResourceKind
     let podCount: Int
+    let clusters: ClustersModel
+    let onAddCluster: () -> Void
+    let onManage: () -> Void
 
     // Illustrative counts / statuses for kinds not yet wired to live data.
     private func trailing(for kind: ResourceKind) -> SidebarRow.Trailing {
@@ -22,7 +25,7 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Nocturne.Space.s1) {
-            ClusterSwitcher()
+            ClusterSwitcher(clusters: clusters, onAddCluster: onAddCluster, onManage: onManage)
                 .padding(.bottom, Nocturne.Space.s2)
 
             ForEach(ResourceKind.Section.allCases) { section in
@@ -58,16 +61,55 @@ struct SidebarView: View {
     }
 }
 
-/// The top-of-sidebar cluster identity + switcher affordance.
+/// The top-of-sidebar cluster identity + switcher menu: switch between saved
+/// clusters, add one, or open the manager.
 private struct ClusterSwitcher: View {
+    let clusters: ClustersModel
+    let onAddCluster: () -> Void
+    let onManage: () -> Void
+
     var body: some View {
+        Menu {
+            ForEach(clusters.connections) { connection in
+                Button {
+                    clusters.select(connection)
+                } label: {
+                    if clusters.selectedID == connection.id {
+                        Label(connection.displayName, systemImage: "checkmark")
+                    } else {
+                        Text(connection.displayName)
+                    }
+                }
+            }
+            Divider()
+            Button {
+                onAddCluster()
+            } label: {
+                Label("Add Cluster…", systemImage: "plus")
+            }
+            Button {
+                onManage()
+            } label: {
+                Label("Manage Clusters…", systemImage: "slider.horizontal.3")
+            }
+        } label: {
+            label
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+    }
+
+    private var label: some View {
         HStack(spacing: Nocturne.Space.s3) {
             StatusDot(health: .ok)
             VStack(alignment: .leading, spacing: 1) {
-                Text("prod-eks").font(Nocturne.Font.bodyEmphasis)
-                Text("us-east-1 · EKS 1.31")
+                Text(clusters.selected?.displayName ?? "No cluster")
+                    .font(Nocturne.Font.bodyEmphasis)
+                    .foregroundStyle(Nocturne.text)
+                Text(clusters.selected?.subtitle ?? "Add a cluster to begin")
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(Nocturne.muted(0.46))
+                    .lineLimit(1)
             }
             Spacer()
             Image(systemName: "chevron.up.chevron.down")
@@ -80,6 +122,7 @@ private struct ClusterSwitcher: View {
             RoundedRectangle(cornerRadius: Nocturne.Radius.md + 2, style: .continuous)
                 .fill(Color.white.opacity(0.08))
         )
+        .contentShape(Rectangle())
     }
 }
 

@@ -8,23 +8,51 @@ import SwiftUI
 /// surface; the macOS app target only supplies the window + a `ClusterClient`.
 public struct ClusterExplorerView: View {
     @State private var model: ExplorerModel
+    @State private var clusters: ClustersModel
+    @State private var showingAdd = false
+    @State private var showingManage = false
 
-    public init(client: any ClusterClient) {
+    public init(
+        client: any ClusterClient,
+        clusterStore: any ClusterStore = InMemoryClusterStore(),
+        azureService: any AzureClusterService = FakeAzureClusterService()
+    ) {
         _model = State(initialValue: ExplorerModel(client: client))
+        _clusters = State(initialValue: ClustersModel(store: clusterStore, azure: azureService))
     }
 
     public var body: some View {
         NavigationSplitView {
-            SidebarView(selection: $model.selection, podCount: model.pods.count)
-                .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 300)
+            SidebarView(
+                selection: $model.selection,
+                podCount: model.pods.count,
+                clusters: clusters,
+                onAddCluster: { showingAdd = true },
+                onManage: { showingManage = true }
+            )
+            .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 300)
         } detail: {
             detail
                 .background(WallBackground())
                 .toolbar { toolbar }
         }
         .navigationTitle(model.selection.title)
-        .task { await model.loadPods() }
+        .task {
+            await clusters.load()
+            await model.loadPods()
+        }
         .tint(Nocturne.accent)
+        .sheet(isPresented: $showingAdd) {
+            AddClusterSheet(azure: clusters.azure) { connections in
+                await clusters.add(connections)
+            }
+        }
+        .sheet(isPresented: $showingManage) {
+            ClustersManagerView(clusters: clusters) {
+                showingManage = false
+                showingAdd = true
+            }
+        }
     }
 
     @ViewBuilder private var detail: some View {
@@ -38,7 +66,7 @@ public struct ClusterExplorerView: View {
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
-            Label("prod-eks", systemImage: "cube")
+            Label(clusters.selected?.displayName ?? "No cluster", systemImage: "cube")
                 .labelStyle(.titleAndIcon)
                 .tint(Nocturne.accent200)
         }

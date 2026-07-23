@@ -23,7 +23,8 @@ public enum HealthStatus: String, Sendable, Codable, CaseIterable {
             "Approved", "Synced", "Healthy", "Bound", "Completed":
             self = .ok
         case "Pending", "ContainerCreating", "PodInitializing", "Progressing",
-            "NotReady", "Not ready", "Terminating", "Unknown":
+            "NotReady", "Not ready", "Terminating", "Unknown",
+            "Stopped", "Stopping", "Starting", "Off":
             self = .warning
         case "Failed", "Error", "CrashLoopBackOff", "ImagePullBackOff",
             "ErrImagePull", "Failing", "OOMKilled", "Evicted", "BackOff":

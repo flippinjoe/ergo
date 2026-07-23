@@ -10,6 +10,7 @@ the one that matches your task — don't read them all.
 | [`add-feature-module`](add-feature-module/SKILL.md) | You're adding a new SPM target/module and want it to follow the pillar seams + naming/test conventions. |
 | [`run-tests`](run-tests/SKILL.md) | You need to run the suite headless, run one test, or read Swift Testing output. |
 | [`k8s-fixtures`](k8s-fixtures/SKILL.md) | You're adding or refreshing fake-cluster JSON fixtures for tests. |
+| [`add-cluster-provider`](add-cluster-provider/SKILL.md) | You're adding a new cluster source (GKE, EKS, …) to the add/manage flow. |
 
 For stable background (architecture, boundaries, conventions, pillars) see the
 [knowledge index](../knowledge/README.md).

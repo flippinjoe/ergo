@@ -10,9 +10,15 @@ import SwiftUI
 struct ErgoApp: App {
     var body: some Scene {
         WindowGroup {
-            ClusterExplorerView(client: FakeClusterClient())
-                .frame(minWidth: 900, minHeight: 560)
-                .preferredColorScheme(.dark)
+            ClusterExplorerView(
+                client: FakeClusterClient(),
+                // Saved clusters persist on-device; Azure discovery is mocked
+                // until the live Entra/ARM calls land (LiveAzureClusterService).
+                clusterStore: FileClusterStore(),
+                azureService: FakeAzureClusterService()
+            )
+            .frame(minWidth: 900, minHeight: 560)
+            .preferredColorScheme(.dark)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)

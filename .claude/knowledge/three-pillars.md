@@ -35,11 +35,17 @@ Authenticate to managed clusters, and expose Ergo's read operations to local
 agents over MCP.
 
 **Where in code:**
+- **Cluster management is built** — adding & managing clusters, Azure sign-in
+  discovery (mock now, live next). See
+  [`clusters-and-auth.md`](clusters-and-auth.md): `ClusterConnection` /
+  `ClusterSource` (KubeCore), `ClusterStore` + `AzureClusterService` (KubeClient),
+  the add/manage UI (KubeUI/Clusters).
 - `KubeClient/ClusterClient.swift` → `MCPExposing` protocol seam
-  (`exposedToolNames`), deliberately unimplemented.
-- The `ClusterClient` boundary is **read-only** in the skeleton — the safe
-  surface an agent would drive.
-- **Future modules:** `KubeAuth`, `KubeAgents`.
+  (`exposedToolNames`), deliberately unimplemented (agent exposure, later).
+- The `ClusterClient` boundary is **read-only** — the safe surface an agent
+  would drive.
+- **Future modules:** `KubeAgents` (MCP exposure); a `KubeAuth` split if auth
+  outgrows `KubeClient`.
 
 ## Why seams, not features
 
