@@ -125,7 +125,9 @@ struct AzureTokenClient: Sendable {
             if let err = try? JSONDecoder().decode(TokenErrorResponse.self, from: response.body) {
                 throw AzureError.authenticationFailed(err.errorDescription ?? err.error)
             }
-            throw AzureError.httpError(status: response.status, body: response.bodyText)
+            throw AzureError.httpError(
+                status: response.status,
+                body: "POST \(config.tokenEndpoint.absoluteString) — \(response.bodyText)")
         }
         return try JSONDecoder().decode(TokenResponse.self, from: response.body)
     }

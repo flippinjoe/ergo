@@ -47,7 +47,7 @@ public final class ExplorerModel {
             pods = []
             deploymentCount = nil
             activeSourceKind = connection.source.kind
-            loadError = String(describing: error)
+            loadError = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
         }
     }
 

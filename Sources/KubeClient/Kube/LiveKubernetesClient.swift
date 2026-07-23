@@ -53,7 +53,8 @@ public struct LiveKubernetesClient: ClusterClient {
         )
         let response = try await http.send(request)
         guard response.isSuccess else {
-            throw KubernetesError.api(status: response.status, body: response.bodyText)
+            throw KubernetesError.api(
+                status: response.status, body: "GET \(request.url.absoluteString) — \(response.bodyText)")
         }
         return try decoder.decode(T.self, from: response.body)
     }

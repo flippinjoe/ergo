@@ -29,10 +29,12 @@ public struct HTTPRequest: Sendable {
 public struct HTTPResponse: Sendable {
     public var status: Int
     public var body: Data
+    public var headers: [String: String]
 
-    public init(status: Int, body: Data) {
+    public init(status: Int, body: Data, headers: [String: String] = [:]) {
         self.status = status
         self.body = body
+        self.headers = headers
     }
 
     public var isSuccess: Bool { (200..<300).contains(status) }
@@ -40,12 +42,16 @@ public struct HTTPResponse: Sendable {
 }
 
 /// The real client, backed by `URLSession`.
-public struct URLSessionHTTPClient: HTTPClient {
-    private let session: URLSession
+///
+/// It preserves the HTTP method and body across redirects. URLSession's default
+/// is to downgrade POST→GET on 301/302/303, which breaks ARM action endpoints
+/// like `listClusterUserCredentials` (POST-only) — a redirected GET there
+/// returns a plain-text 404. We keep the original method/body/headers on
+/// same-host redirects.
+public final class URLSessionHTTPClient: NSObject, HTTPClient, URLSessionTaskDelegate, @unchecked Sendable {
+    private lazy var session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
 
-    public init(session: URLSession = .shared) {
-        self.session = session
-    }
+    public override init() { super.init() }
 
     public func send(_ request: HTTPRequest) async throws -> HTTPResponse {
         var urlRequest = URLRequest(url: request.url)
@@ -55,7 +61,36 @@ public struct URLSessionHTTPClient: HTTPClient {
             urlRequest.setValue(value, forHTTPHeaderField: key)
         }
         let (data, response) = try await session.data(for: urlRequest)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        return HTTPResponse(status: status, body: data)
+        let http = response as? HTTPURLResponse
+        var headers: [String: String] = [:]
+        for (key, value) in http?.allHeaderFields ?? [:] {
+            if let key = key as? String, let value = value as? String { headers[key] = value }
+        }
+        return HTTPResponse(status: http?.statusCode ?? 0, body: data, headers: headers)
+    }
+
+    public func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping @Sendable (URLRequest?) -> Void
+    ) {
+        guard let original = task.originalRequest else {
+            completionHandler(request)
+            return
+        }
+        // Restore the original method + body across the redirect. URLSession
+        // downgrades POST→GET on 302/303, and ARM redirects action POSTs to a
+        // regional endpoint — a downgraded GET there returns a plain-text 404.
+        var preserved = request
+        preserved.httpMethod = original.httpMethod
+        preserved.httpBody = original.httpBody
+        for (key, value) in original.allHTTPHeaderFields ?? [:] {
+            if preserved.value(forHTTPHeaderField: key) == nil {
+                preserved.setValue(value, forHTTPHeaderField: key)
+            }
+        }
+        completionHandler(preserved)
     }
 }
