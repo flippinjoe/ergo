@@ -7,6 +7,8 @@ struct LogDockView: View {
     /// The pod being followed, or `nil` when nothing is selected.
     let followed: String?
     let lines: [LogLine]
+    /// Dismisses the dock.
+    var onClose: () -> Void = {}
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -61,16 +63,21 @@ struct LogDockView: View {
             } label: {
                 Label("Exec", systemImage: "terminal")
             }
+            .disabled(followed == nil)
             Button {
             } label: {
                 Label("Explain", systemImage: "sparkles")
             }
             .tint(Nocturne.accent)
+            .disabled(followed == nil)
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+            }
+            .help("Hide logs")
         }
         .font(Nocturne.Font.small)
         .buttonStyle(.borderless)
         .controlSize(.small)
-        .disabled(followed == nil)
         .padding(.horizontal, Nocturne.Space.s3)
         .frame(height: 34)
         .glassPanel(cornerRadius: Nocturne.Radius.md)

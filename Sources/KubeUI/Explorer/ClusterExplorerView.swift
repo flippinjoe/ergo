@@ -52,6 +52,10 @@ public struct ClusterExplorerView: View {
             .background(WallBackground())
             .toolbar { toolbar }
         }
+        // The refractive wall also sits behind the sidebar and under the unified
+        // toolbar, so the sidebar glass and the Liquid Glass title bar refract
+        // one continuous surface instead of a plain window backing.
+        .background(WallBackground())
         .navigationTitle(model.selection?.displayName ?? "Ergo")
         .task { await clusters.load() }
         // Rebuild + reload whenever the selected cluster changes.
@@ -81,7 +85,9 @@ public struct ClusterExplorerView: View {
                     isLoading: model.isLoading,
                     selection: $model.selectedID,
                     followedPod: model.followedPod,
-                    logLines: model.logLines
+                    logLines: model.logLines,
+                    showLogs: model.showLogDock,
+                    onCloseLogs: { model.setLogDockVisible(false) }
                 )
             } else {
                 ResourceTableView(
@@ -114,9 +120,17 @@ public struct ClusterExplorerView: View {
                 NamespaceFilterView(namespaces: model.namespaces, selection: $model.selectedNamespaces)
             }
         }
-        // Trailing: live-status, search, and the AI action.
+        // Trailing: logs toggle (Pods only), search, and the AI action.
         ToolbarItemGroup(placement: .primaryAction) {
-            LiveIndicator(isLoading: model.isLoading)
+            if let selection = model.selection, ResourceCatalog.isPods(selection) {
+                Button {
+                    model.toggleLogDock()
+                } label: {
+                    Label("Logs", systemImage: "text.alignleft")
+                }
+                .help(model.showLogDock ? "Hide logs" : "Show logs")
+                .tint(model.showLogDock ? Nocturne.accent : nil)
+            }
             Button {
             } label: {
                 Image(systemName: "magnifyingglass")
@@ -140,27 +154,8 @@ public struct ClusterExplorerView: View {
     }
 }
 
-/// A small "Live" pill signaling the view auto-updates.
-private struct LiveIndicator: View {
-    let isLoading: Bool
-    @State private var pulse = false
-
-    var body: some View {
-        HStack(spacing: Nocturne.Space.s2) {
-            Circle()
-                .fill(Nocturne.statusOK)
-                .frame(width: 6, height: 6)
-                .opacity(pulse ? 0.35 : 1)
-            Text("Live").font(Nocturne.Font.small).foregroundStyle(Nocturne.muted(0.7))
-        }
-        .help("Auto-updating")
-        .onAppear {
-            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
-        }
-    }
-}
-
-/// The Pods pane: the table edge-to-edge with the log dock pinned to the bottom.
+/// The Pods pane: the table edge-to-edge, with the log dock revealed at the
+/// bottom only while `showLogs` is on (opt-in, closable).
 private struct PodsContentPane: View {
     let pods: [Pod]
     let description: String?
@@ -169,6 +164,8 @@ private struct PodsContentPane: View {
     @Binding var selection: Pod.ID?
     let followedPod: String?
     let logLines: [LogLine]
+    let showLogs: Bool
+    let onCloseLogs: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -177,9 +174,13 @@ private struct PodsContentPane: View {
                 selection: $selection
             )
             .frame(maxHeight: .infinity)
-            LogDockView(followed: followedPod, lines: logLines)
-                .padding([.horizontal, .bottom], Nocturne.Space.s3)
+            if showLogs {
+                LogDockView(followed: followedPod, lines: logLines, onClose: onCloseLogs)
+                    .padding([.horizontal, .bottom], Nocturne.Space.s3)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: showLogs)
     }
 }
 

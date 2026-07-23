@@ -49,11 +49,15 @@ final class ExplorerModel {
     var selectedID: String? {
         didSet {
             if selectedID != oldValue {
-                updateLogStream()
+                if showLogDock { updateLogStream() }
                 updateInspectorTask()
             }
         }
     }
+    /// Whether the pod log dock is shown. Off by default: logs are opt-in, not
+    /// summoned automatically by selecting a pod. Streaming only runs while the
+    /// dock is visible.
+    private(set) var showLogDock = false
 
     private(set) var sections: [SidebarSection] = []
     /// Resource types pinned to the top of the sidebar, in the user's order.
@@ -130,6 +134,7 @@ final class ExplorerModel {
     /// load namespaces, and start watching a default resource (Pods).
     func activate(_ connection: ClusterConnection?) async {
         stop()
+        showLogDock = false
         selection = nil
         selectedID = nil
         inspector = nil
@@ -266,7 +271,9 @@ final class ExplorerModel {
         loadError = nil
         lastUpdated = now
         applyFilter()
-        if followedPod == nil, selectedID != nil, ResourceCatalog.isPods(resource) { updateLogStream() }
+        if showLogDock, followedPod == nil, selectedID != nil, ResourceCatalog.isPods(resource) {
+            updateLogStream()
+        }
     }
 
     private func watchFailed(key: String, error: any Error) {
@@ -444,6 +451,22 @@ final class ExplorerModel {
     }
 
     // MARK: - Log streaming
+
+    /// Show or hide the pod log dock. Showing it starts streaming the selected
+    /// pod; hiding it tears the stream down and clears any buffered lines.
+    func setLogDockVisible(_ visible: Bool) {
+        guard showLogDock != visible else { return }
+        showLogDock = visible
+        if visible {
+            updateLogStream()
+        } else {
+            stopLogStream()
+            logLines = []
+            followedPod = nil
+        }
+    }
+
+    func toggleLogDock() { setLogDockVisible(!showLogDock) }
 
     private func stopLogStream() {
         logTask?.cancel()
