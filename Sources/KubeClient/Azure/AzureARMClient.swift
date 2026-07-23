@@ -47,50 +47,37 @@ struct AzureARMClient: Sendable {
         }
     }
 
-    /// api-versions to try for the credentials action, newest first, in case a
-    /// tenant/region doesn't expose the action on the newest one.
-    private static let credentialAPIVersions = ["2024-05-01", "2024-02-01", "2023-10-01", "2023-08-01"]
-
-    /// Fetches the cluster's kubeconfig via `listClusterUserCredentials` (user
-    /// credentials — respects RBAC; never admin). Returns the raw kubeconfig
-    /// bytes (base64-decoded from the ARM response).
+    /// Fetches the cluster's kubeconfig via the `listClusterUserCredential`
+    /// action (user credentials — respects RBAC; never admin). Returns the raw
+    /// kubeconfig bytes (base64-decoded from the ARM response).
+    ///
+    /// NB: the ARM action segment is **singular** (`listClusterUserCredential`),
+    /// even though the operation is titled "List Cluster User Credentials" and
+    /// the vendor SDK methods are plural. The plural spelling 404s.
     func userKubeconfig(accessToken: String, cluster: KubeCore.AzureClusterRef) async throws -> Data {
-        // Canonical casing: AKS returns IDs with lowercase `resourcegroups`, but
-        // ARM's action dispatch wants `resourceGroups`.
-        let base =
-            baseURL.absoluteString
-            + "/subscriptions/\(cluster.subscriptionID)"
+        // Build from components with canonical casing (AKS returns lowercase
+        // `resourcegroups` in IDs; ARM's action dispatch wants `resourceGroups`).
+        let path =
+            "/subscriptions/\(cluster.subscriptionID)"
             + "/resourceGroups/\(cluster.resourceGroup)"
             + "/providers/Microsoft.ContainerService/managedClusters/\(cluster.clusterName)"
-            + "/listClusterUserCredentials"
-
-        let auth = ["Authorization": "Bearer \(accessToken)", "Accept": "application/json"]
-        var lastStatus = 0
-        for version in Self.credentialAPIVersions {
-            guard let url = URL(string: base + "?api-version=" + version) else { continue }
-            // No request body: the action takes no parameters.
-            let response = try await http.send(HTTPRequest(method: .post, url: url, headers: auth))
-            if response.isSuccess {
-                let result = try JSONDecoder().decode(ARMCredentialResults.self, from: response.body)
-                guard let value = result.kubeconfigs.first?.value, let data = Data(base64Encoded: value)
-                else {
-                    throw AzureError.invalidCallback("no kubeconfig in listClusterUserCredentials response")
-                }
-                return data
-            }
-            lastStatus = response.status
-            // 404 → try the next api-version; other errors won't improve.
-            if response.status != 404 {
-                throw AzureError.httpError(status: response.status, body: response.bodyText)
-            }
+            + "/listClusterUserCredential?api-version=\(Self.aksAPIVersion)"
+        guard let url = URL(string: baseURL.absoluteString + path) else {
+            throw AzureError.invalidCallback("bad cluster resource ID")
         }
-        // ARM refused the in-app credentials fetch (status \(lastStatus)). The
-        // reliable path is a local kubeconfig, which talks to the cluster
-        // directly without ARM.
-        throw AzureError.credentialsForbidden(
-            "Couldn't fetch '\(cluster.clusterName)' credentials from Azure (status \(lastStatus)). "
-                + "Run `az aks get-credentials -g \(cluster.resourceGroup) -n \(cluster.clusterName)`, "
-                + "then add it via Add Cluster → Kubeconfig file.")
+        // The action takes no request body.
+        let response = try await http.send(
+            HTTPRequest(
+                method: .post, url: url,
+                headers: ["Authorization": "Bearer \(accessToken)", "Accept": "application/json"]))
+        guard response.isSuccess else {
+            throw AzureError.httpError(status: response.status, body: response.bodyText)
+        }
+        let result = try JSONDecoder().decode(ARMCredentialResults.self, from: response.body)
+        guard let value = result.kubeconfigs.first?.value, let data = Data(base64Encoded: value) else {
+            throw AzureError.invalidCallback("no kubeconfig in listClusterUserCredential response")
+        }
+        return data
     }
 
     private func get<T: Decodable>(_ url: URL, accessToken: String) async throws -> T {

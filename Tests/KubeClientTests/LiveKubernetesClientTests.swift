@@ -162,7 +162,7 @@ struct AzureKubeconfigFetchTests {
                 account: AzureAccount(username: "dev", tenantID: "t")))
         let http = RecordingHTTPClient([
             "/token": (200, tokenJSON),
-            "listClusterUserCredentials": (200, credsJSON),
+            "listClusterUserCredential": (200, credsJSON),
         ])
         let service = LiveAzureClusterService(
             webAuthenticator: FakeWebAuthenticator(), http: http, tokenStore: store,

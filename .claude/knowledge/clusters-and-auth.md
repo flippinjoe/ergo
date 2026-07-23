@@ -50,14 +50,18 @@ Talking to a cluster needs only its kubeconfig (server + CA + token) — ARM is
 - This is the proven path (validated live). ARM auto-fetch is only a convenience
   for clusters not already in a local kubeconfig.
 
-## Known issue — Azure in-app credential fetch
+## Gotcha — the ARM credentials action is singular
 
-`listClusterUserCredentials` returns a plain 404 from ARM in-app while
-`az aks get-credentials` (same public client, same account) succeeds — so it's a
-client-side request difference, not permissions (confirmed with an Owner account).
-The cluster resource GET works; only the credentials action 404s. Not yet root-caused
-(needs an `az --debug` request comparison). Workaround is the local kubeconfig path
-above; the error message points there.
+The ARM action segment is **`listClusterUserCredential`** (singular), even though
+the operation is titled "List Cluster User Credentials" and the vendor SDK
+methods are plural (`listClusterUserCredentials`). Posting to the plural spelling
+returns a `text/plain` 404 from ARM (which cost real debugging time). Per the
+[REST docs](https://learn.microsoft.com/en-us/rest/api/aks/managed-clusters/list-cluster-user-credentials):
+POST, no body, response `{ "kubeconfigs": [{ name, value(base64) }] }`.
+
+There is **no Swift ARM SDK** (the official `azure-sdk-for-ios` is beta and
+data-plane only), so the thin `URLSession` client in `AzureARMClient` is the
+right approach.
 
 ## UI (KubeUI/Clusters)
 

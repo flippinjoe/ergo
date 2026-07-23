@@ -22,7 +22,6 @@ public enum AzureError: Error, Sendable, Equatable, LocalizedError {
     case notSignedIn
     case fixtureNotFound(String)
     case authenticationFailed(String)
-    case credentialsForbidden(String)
     case httpError(status: Int, body: String)
     case invalidCallback(String)
     case cancelled
@@ -33,7 +32,6 @@ public enum AzureError: Error, Sendable, Equatable, LocalizedError {
         case .notSignedIn: "Not signed in to Azure."
         case .fixtureNotFound(let name): "Fixture not found: \(name)."
         case .authenticationFailed(let message): message
-        case .credentialsForbidden(let message): message
         case .httpError(let status, let body): "Azure request failed (\(status)): \(body)"
         case .invalidCallback(let message): "Sign-in callback error: \(message)"
         case .cancelled: "Sign-in was cancelled."
